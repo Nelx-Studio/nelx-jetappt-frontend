@@ -862,8 +862,6 @@ class NELXJAF_API {
     public function reschedule_appointment_with_timezone($request) {
         $params = $request->get_json_params();
         $id = intval($params['id'] ?? 0);
-        $slot_utc = intval($params['slot_utc'] ?? 0);
-        $slot_end_utc = intval($params['slot_end_utc'] ?? 0);
         $client_timezone = sanitize_text_field($params['client_timezone'] ?? '');
         $client_local_date = sanitize_text_field($params['client_local_date'] ?? '');
         $client_local_time = sanitize_text_field($params['client_local_time'] ?? '');
@@ -904,6 +902,7 @@ class NELXJAF_API {
         $provider_local_end_for_client = '';
         
         if ($is_provider && $provider_date && $provider_start_time && $provider_end_time) {
+            // Provider rescheduling: parse provider-local date/time
             $start_parts = explode(':', $provider_start_time);
             $start_hour = intval($start_parts[0]);
             $start_min = intval($start_parts[1]);
@@ -924,15 +923,24 @@ class NELXJAF_API {
             $provider_local_end_for_client = $provider_end_time;
             $provider_date_for_client = $provider_date;
         } else if ($is_client && !empty($client_timezone) && !empty($client_local_date) && !empty($client_local_time)) {
+            // Client rescheduling: parse client-local date/time WITHOUT UTC conversion
+            // Client provided date/time is in their timezone
             $client_times = explode('-', $client_local_time);
-            $client_start_time = $client_times[0];
-            $client_end_time = $client_times[1];
+            $client_start_time = $client_times[0] ?? '';
+            $client_end_time = $client_times[1] ?? '';
             
-            $final_slot = $timezone_helper->client_time_to_provider_local($client_local_date, $client_start_time, $client_timezone);
-            $final_slot_end = $timezone_helper->client_time_to_provider_local($client_local_date, $client_end_time, $client_timezone);
-        } else if ($slot_utc && $slot_end_utc) {
-            $final_slot = $slot_utc;
-            $final_slot_end = $slot_end_utc;
+            // Parse client date into Y-m-d format for conversion
+            $client_date_obj = DateTime::createFromFormat('F j, Y', $client_local_date);
+            if ($client_date_obj) {
+                $client_date_parsed = $client_date_obj->format('Y-m-d');
+            } else {
+                // Fallback if format doesn't match
+                $client_date_parsed = $client_local_date;
+            }
+            
+            // Convert client-local to provider-local timestamp
+            $final_slot = $timezone_helper->client_time_to_provider_local($client_date_parsed, $client_start_time, $client_timezone);
+            $final_slot_end = $timezone_helper->client_time_to_provider_local($client_date_parsed, $client_end_time, $client_timezone);
         }
         
         if (!$final_slot || !$final_slot_end) {
@@ -962,8 +970,10 @@ class NELXJAF_API {
         
         if ($updated) {
             if ($is_client && !empty($client_timezone)) {
+                // Save client timezone metadata exactly as client provided (no conversion)
                 $timezone_helper->update_client_timezone_data($id, $client_timezone, $client_local_date, $client_local_time);
             } elseif ($is_provider) {
+                // Provider rescheduled: update client metadata if it exists
                 $existing_client_timezone = $timezone_helper->get_client_timezone($id);
                 if (!empty($existing_client_timezone)) {
                     $client_start_display = $timezone_helper->provider_local_to_client($provider_date_for_client, $provider_local_for_client, $existing_client_timezone, 'H:i');
@@ -1110,7 +1120,7 @@ class NELXJAF_API {
         $ids = array_map('intval', $ids);
         $placeholders = implode(',', array_fill(0, count($ids), '%d'));
         
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQL.NotPrepared
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders
         $appointments = $this->core->wpdb->get_results(
             $this->core->wpdb->prepare(
                 "SELECT ID, appointment_status, slot, slot_end, provider, user_id FROM {$this->core->appt_table} WHERE ID IN ($placeholders)",
@@ -1360,8 +1370,6 @@ class NELXJAF_API {
                     'end_ts' => $slot['end_ts'],
                     'start' => $client_start,
                     'end' => $client_end,
-                    'start_utc' => $slot['start_ts'],
-                    'end_utc' => $slot['end_ts']
                 ];
             }
             

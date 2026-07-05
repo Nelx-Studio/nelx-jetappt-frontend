@@ -5,7 +5,7 @@
     function toInt(v, d) { d = d || 0; return (v === undefined || v === null || v === '') ? d : parseInt(v, 10) || d; }
     function pad2(n) { return (n < 10 ? '0' + n : '' + n); }
     function secondsToHHMM(s) { var hh = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60); return pad2(hh) + ':' + pad2(mm); }
-    function hhmmToSeconds(hm) { if (!hm) return 0; if (/^\d+$/.test(hm)) return parseInt(hm, 10); var p = String(hm).split(':'); if (p.length === 2) return parseInt(p[0]) * 3600 + parseInt(p[1]) * 60; return parseInt(hm, 10) || 0; }
+    function hhmmToSeconds(hm) { if (!hm) return 0; if (/^\d+$/.test(hm)) return parseInt(hm, 10); var p = String(hm).split(':'); if (p.length === 2) return parseInt(p[0]) * 3600 + parseInt(p[1]) * 60; return parseInt(hm, 10); }
     
     function getCloseIconSVG() {
         return '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
@@ -144,7 +144,7 @@
         if (!$root.length) $('body').append('<div id="nelx-alert-root" style="margin-top: 20px;"></div>');
         $root = $('#nelx-alert-root');
         var $alert = $('<div class="nelx-alert ' + cls + '"></div>');
-        $alert.append('<svg viewBox="0 0 24 24">' + (cls === 'ok' ? '<path d="M9 16.17L4.83 12 3.41 13.41 9 19 21 7 19.59 5.59z"/>' : '<path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>') + '</svg>');
+        $alert.append('<svg viewBox="0 0 24 24">' + (cls === 'ok' ? '<path d="M9 16.17L4.83 12 3.41 13.41 9 19 21 7 19.59 5.59z"/>' : '<path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/>') + '</svg>');
         $alert.append('<span>' + msg + '</span>');
         $root.empty().append($alert);
         
@@ -323,8 +323,8 @@
     function pill(name, sub, data) {
         var $el = $('<span class="nelx-tag"></span>');
         $el.append('<span>' + name + (sub ? ' — ' + sub : '') + '</span>');
-        $el.append('<button type="button" class="nelx-icon-btn nelx-edit-day" title="Edit"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>');
-        $el.append('<button type="button" class="nelx-icon-btn nelx-remove-tag" title="Remove"><svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>');
+        $el.append('<button type="button" class="nelx-icon-btn nelx-edit-day" title="Edit"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="currentColor"></path></svg></button>');
+        $el.append('<button type="button" class="nelx-icon-btn nelx-remove-tag" title="Remove"><svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 4 21 20"></polyline><polyline points="3 20 5 22 21 6"></polyline></svg></button>');
         if (data) $el.attr('data-item', JSON.stringify(data));
         return $el;
     }
@@ -352,7 +352,7 @@
         $r.append($('<div class="nelx-time-dropdown" data-value="' + from + '"><div class="nelx-skeleton-line" style="height: 40px; width: 100%;"></div></div>'));
         $r.append('<span class="sep">–</span>');
         $r.append($('<div class="nelx-time-dropdown" data-value="' + to + '"><div class="nelx-skeleton-line" style="height: 40px; width: 100%;"></div></div>'));
-        $r.append('<button type="button" class="nelx-icon-btn nelx-danger nelx-remove-slot" title="Remove"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2zM4 7h16v2H4z"/></svg></button>');
+        $r.append('<button type="button" class="nelx-icon-btn nelx-danger nelx-remove-slot" title="Remove"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2zM4 7h16v2H4z" fill="currentColor"/></svg></button>');
         return $r;
     }
 
@@ -641,7 +641,7 @@
             if (slots.length > 0) {
                 slots.forEach(function(slot) {
                     var selected = (slot.start === selectedStartTime) ? ' selected' : '';
-                    $startSelect.append('<option value="' + slot.start + '" data-end="' + slot.end + '" data-start-utc="' + slot.start_ts + '" data-end-utc="' + slot.end_ts + '"' + selected + '>' + slot.start + '</option>');
+                    $startSelect.append('<option value="' + slot.start + '" data-end="' + slot.end + '" data-start-ts="' + slot.start_ts + '" data-end-ts="' + slot.end_ts + '"' + selected + '>' + slot.start + '</option>');
                 });
                 
                 var initialEnd = $startSelect.find('option:selected').data('end') || selectedEndTime;
@@ -690,7 +690,8 @@
             
             if (slots.length > 0) {
                 slots.forEach(function(slot) {
-                    $startSelect.append('<option value="' + slot.start + '" data-end="' + slot.end + '" data-start-utc="' + slot.start_utc + '" data-end-utc="' + slot.end_utc + '">' + slot.start + '</option>');
+                    // Store provider-local timestamps for backend
+                    $startSelect.append('<option value="' + slot.start + '" data-end="' + slot.end + '" data-start-ts="' + slot.start_ts + '" data-end-ts="' + slot.end_ts + '">' + slot.start + '</option>');
                 });
                 
                 var initialEnd = $startSelect.find('option:selected').data('end');
@@ -1141,14 +1142,14 @@
             var id = detectAppointmentId($wrap);
             var isProvider = $wrap.closest('.nelx-actions-inline').length > 0;
             
-            var $m = modal('<div class="nelx-modal-head"><h3>Reschedule Appointment</h3><button class="nelx-modal-close">' + getCloseIconSVG() + '</button></div><div class="nelx-modal-body"></div><div class="nelx-modal-foot"><button class="nelx-btn nelx-primary" id="edit_save" disabled>Save</button><button class="nelx-btn" data-close="1">Cancel</button></div>', $btn);
+            var $m = modal('<div class="nelx-modal-head"><h3>Reschedule Appointment</h3><button class="nelx-modal-close">' + getCloseIconSVG() + '</button></div><div class="nelx-modal-body"></div><div class="nelx-modal-foot"><button class="nelx-btn nelx-primary" id="edit_save">Save</button><button class="nelx-btn" data-close="1">Cancel</button></div>');
             
             // Show per-field skeletons
             var skeletonHtml = '<div class="nelx-info-grid">';
-            skeletonHtml += '<div><label><div class="nelx-skeleton-line" style="height: 20px; width: 100px; margin-bottom: 8px;"></div></label><div class="nelx-skeleton-line" style="height: 40px; margin-bottom: 16px;"></div></div>';
-            skeletonHtml += '<div><label><div class="nelx-skeleton-line" style="height: 20px; width: 100px; margin-bottom: 8px;"></div></label><div class="nelx-skeleton-line" style="height: 40px; margin-bottom: 16px;"></div></div>';
-            skeletonHtml += '<div><label><div class="nelx-skeleton-line" style="height: 20px; width: 100px; margin-bottom: 8px;"></div></label><div class="nelx-skeleton-line" style="height: 40px; margin-bottom: 16px;"></div></div>';
-            skeletonHtml += '<div><label><div class="nelx-skeleton-line" style="height: 20px; width: 100px; margin-bottom: 8px;"></div></label><div class="nelx-skeleton-line" style="height: 40px; margin-bottom: 16px;"></div></div>';
+            skeletonHtml += '<div><label><div class="nelx-skeleton-line" style="height: 20px; width: 100px; margin-bottom: 8px;"></div></label><div class="nelx-skeleton-line" style="height: 40px; width: 100%;"></div></div>';
+            skeletonHtml += '<div><label><div class="nelx-skeleton-line" style="height: 20px; width: 100px; margin-bottom: 8px;"></div></label><div class="nelx-skeleton-line" style="height: 40px; width: 100%;"></div></div>';
+            skeletonHtml += '<div><label><div class="nelx-skeleton-line" style="height: 20px; width: 100px; margin-bottom: 8px;"></div></label><div class="nelx-skeleton-line" style="height: 40px; width: 100%;"></div></div>';
+            skeletonHtml += '<div><label><div class="nelx-skeleton-line" style="height: 20px; width: 100px; margin-bottom: 8px;"></div></label><div class="nelx-skeleton-line" style="height: 40px; width: 100%;"></div></div>';
             skeletonHtml += '</div>';
             $m.find('.nelx-modal-body').html(skeletonHtml);
             
@@ -1369,50 +1370,22 @@
                         payload.provider_date = selectedDate;
                         payload.provider_start_time = selectedStart;
                         payload.provider_end_time = selectedEnd;
-                        payload.slot_utc = 0;
-                        payload.slot_end_utc = 0;
                         
                     } else {
-                        // Client rescheduling - use the UTC timestamps from the selected option
-                        var selectedOption = $m.find('#edit_start_time option:selected');
-                        var startUtc = selectedOption.data('start-utc');
-                        var endUtc = selectedOption.data('end-utc');
+                        // Client rescheduling - send client-local date/time without UTC conversion
+                        // Format the date as displayed (no UTC conversion)
+                        var clientDateDisplay = new Date(selectedDate).toLocaleDateString(undefined, {
+                            month: 'long',
+                            day: 'numeric',
+                            year: 'numeric'
+                        });
                         
-                        if (!startUtc || !endUtc) {
-                            showAlert('Invalid slot selection', 'error');
-                            hideButtonSpinner($saveBtn);
-                            return;
-                        }
-                        
-                        payload.slot_utc = startUtc;
-                        payload.slot_end_utc = endUtc;
-                        
-                        if (selectedTimezone) {
-                            var clientLocalDate = new Date(startUtc * 1000).toLocaleDateString(undefined, {
-                                timeZone: selectedTimezone,
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                            });
-                            
-                            var clientStartTime = new Date(startUtc * 1000).toLocaleTimeString(undefined, {
-                                timeZone: selectedTimezone,
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: false
-                            });
-                            
-                            var clientEndTime = new Date(endUtc * 1000).toLocaleTimeString(undefined, {
-                                timeZone: selectedTimezone,
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: false
-                            });
-                            
-                            payload.client_timezone = selectedTimezone;
-                            payload.client_local_date = clientLocalDate;
-                            payload.client_local_time = clientStartTime + '-' + clientEndTime;
-                        }
+                        payload.provider_date = selectedDate;
+                        payload.provider_start_time = selectedStart;
+                        payload.provider_end_time = selectedEnd;
+                        payload.client_timezone = selectedTimezone;
+                        payload.client_local_date = clientDateDisplay;
+                        payload.client_local_time = selectedStart + '-' + selectedEnd;
                     }
                     
                     $.ajax({
@@ -1454,7 +1427,7 @@
             var id = detectAppointmentId($wrap);
             var isProvider = $wrap.closest('.nelx-actions-inline').length > 0;
             
-            var $m = modal('<div class="nelx-modal-head"><h3>Appointment Information</h3><button class="nelx-modal-close">' + getCloseIconSVG() + '</button></div><div class="nelx-modal-body"><div class="nelx-info-grid"><div><label><div class="nelx-skeleton-line" style="height: 20px; width: 80px;"></div></label><div class="nelx-skeleton-line" style="height: 30px;"></div></div><div><label><div class="nelx-skeleton-line" style="height: 20px; width: 80px;"></div></label><div class="nelx-skeleton-line" style="height: 30px;"></div></div></div></div><div class="nelx-modal-foot"><button class="nelx-btn" data-close="1">Close</button></div>', $btn);
+            var $m = modal('<div class="nelx-modal-head"><h3>Appointment Information</h3><button class="nelx-modal-close">' + getCloseIconSVG() + '</button></div><div class="nelx-modal-body"><div class="nelx-skeleton-line" style="height: 200px; width: 100%;"></div></div>');
             
             // Apply corner rounding
             $m.find('.nelx-modal-card').css({

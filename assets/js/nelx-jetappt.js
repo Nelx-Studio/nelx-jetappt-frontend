@@ -1427,7 +1427,7 @@
             var id = detectAppointmentId($wrap);
             var isProvider = $wrap.closest('.nelx-actions-inline').length > 0;
             
-            var $m = modal('<div class="nelx-modal-head"><h3>Appointment Information</h3><button class="nelx-modal-close">' + getCloseIconSVG() + '</button></div><div class="nelx-modal-body"><div class="nelx-skeleton-line" style="height: 200px; width: 100%;"></div></div>');
+            var $m = modal('<div class="nelx-modal-head"><h3>Appointment Information</h3><button class="nelx-modal-close">' + getCloseIconSVG() + '</button></div><div class="nelx-modal-body"><div class="nelx-info-grid"><div><label><div class="nelx-skeleton-line" style="height: 20px; width: 80px;"></div></label><div class="nelx-skeleton-line" style="height: 30px;"></div></div><div><label><div class="nelx-skeleton-line" style="height: 20px; width: 80px;"></div></label><div class="nelx-skeleton-line" style="height: 30px;"></div></div></div></div><div class="nelx-modal-foot"><button class="nelx-btn" data-close="1">Close</button></div>', $btn);
             
             // Apply corner rounding
             $m.find('.nelx-modal-card').css({

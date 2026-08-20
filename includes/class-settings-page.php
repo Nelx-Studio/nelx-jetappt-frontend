@@ -40,6 +40,10 @@ class NELXJAF_Settings_Page {
             ['[nelx_schedule_editor]', esc_html__('Displays the provider schedule editor.', 'nelx-jetappt-frontend')],
             ['[nelx_provider_action_buttons]', esc_html__('Provider inline actions (confirm/reject/reschedule/info).', 'nelx-jetappt-frontend')],
             ['[nelx_client_action_buttons]', esc_html__('Client actions: reschedule, cancel, info.', 'nelx-jetappt-frontend')],
+            ['[nelx_staff_appointments]', esc_html__('Native staff/provider appointments table.', 'nelx-jetappt-frontend')],
+            ['[nelx_client_appointments]', esc_html__('Native client appointments table.', 'nelx-jetappt-frontend')],
+            ['[nelx_staff_appointments_grid]', esc_html__('Native staff/provider dashboard appointment cards.', 'nelx-jetappt-frontend')],
+            ['[nelx_client_appointments_grid]', esc_html__('Native client dashboard appointment cards.', 'nelx-jetappt-frontend')],
             ['[nelx_google_meet_settings]', esc_html__('Provider Google Meet settings page.', 'nelx-jetappt-frontend')],
         ];
         ?>
@@ -52,7 +56,7 @@ class NELXJAF_Settings_Page {
                         <li>
                             <a href="#" class="nelx-jetappt-nav-item active" data-tab="nelx-jetappt-tab-database">
                                 <span class="dashicons dashicons-database"></span>
-                                <span class="nelx-jetappt-nav-text"><?php esc_html_e('Database Settings', 'nelx-jetappt-frontend'); ?></span>
+                                <span class="nelx-jetappt-nav-text"><?php esc_html_e('General Settings', 'nelx-jetappt-frontend'); ?></span>
                             </a>
                         </li>
                         <li>
@@ -151,60 +155,220 @@ class NELXJAF_Settings_Page {
     }
     
     private function render_database_section() {
-        $options = get_option($this->option_name, [
-            'appt_table' => 'jet_appointments',
-            'appt_meta_table' => 'jet_appointments_meta',
+        $options = get_option($this->option_name, []);
+        $defaults = [
             'provider_meta_table' => 'staff_list_for_appoi_meta',
             'provider_column' => 'staff_id',
-        ]);
-        
-        $fields = [
-            [
-                'content' => $this->get_field_html(
-                    esc_html__('Appointments Table', 'nelx-jetappt-frontend'),
-                    '<input type="text" id="appt_table" name="' . esc_attr($this->option_name) . '[appt_table]" 
-                        value="' . esc_attr($options['appt_table']) . '" class="regular-text" required>',
-                    esc_html__('Default: jet_appointments. Table that stores appointment rows.', 'nelx-jetappt-frontend')
-                )
-            ],
-            [
-                'content' => $this->get_field_html(
-                    esc_html__('Appointments Meta Table', 'nelx-jetappt-frontend'),
-                    '<input type="text" id="appt_meta_table" name="' . esc_attr($this->option_name) . '[appt_meta_table]" 
-                        value="' . esc_attr($options['appt_meta_table']) . '" class="regular-text" required>',
-                    esc_html__('Default: jet_appointments_meta. Stores appointment meta fields like URLs.', 'nelx-jetappt-frontend')
-                )
-            ],
-            [
-                'content' => $this->get_field_html(
-                    esc_html__('Provider Meta Table', 'nelx-jetappt-frontend'),
-                    '<input type="text" id="provider_meta_table" name="' . esc_attr($this->option_name) . '[provider_meta_table]" 
-                        value="' . esc_attr($options['provider_meta_table']) . '" class="regular-text" required>',
-                    esc_html__('Default: staff_list_for_appoi_meta. Maps WP user IDs to provider post IDs.', 'nelx-jetappt-frontend')
-                )
-            ],
-            [
-                'content' => $this->get_field_html(
-                    esc_html__('Provider Column', 'nelx-jetappt-frontend'),
-                    '<input type="text" id="provider_column" name="' . esc_attr($this->option_name) . '[provider_column]" 
-                        value="' . esc_attr($options['provider_column']) . '" class="regular-text" required autocomplete="off">',
-                    esc_html__('Default: staff_id. Column in appointments table that stores provider user ID.', 'nelx-jetappt-frontend')
-                )
-            ]
+            'staff_table_columns' => ['id', 'service', 'client', 'appointment_date', 'slot', 'slot_end', 'action'],
+            'client_table_columns' => ['id', 'service', 'staff', 'appointment_date', 'time', 'status', 'action'],
+            'staff_modal_fields' => ['start', 'end', 'timezone', 'service', 'client', 'client_email', 'client_phone', 'google_meet', 'appointment_status', 'client_local_date', 'client_local_time', 'client_local_timezone', 'notes'],
+            'client_modal_fields' => ['date', 'time', 'timezone', 'service', 'provider', 'google_meet', 'appointment_status', 'notes'],
+            'staff_table_labels' => [],
+            'client_table_labels' => [],
+            'staff_modal_labels' => [],
+            'client_modal_labels' => [],
+            'staff_grid_limit' => 5,
+            'client_grid_limit' => 5,
+            'staff_grid_columns_desktop' => 3,
+            'staff_grid_columns_tablet' => 2,
+            'client_grid_columns_desktop' => 3,
+            'client_grid_columns_tablet' => 2,
+            'table_header_bg' => '',
+            'table_header_text' => '#ffffff',
+            'table_header_font_size' => 14,
+            'table_body_font_size' => 14,
+            'table_control_font_size' => 14,
+            'table_hover_bg' => '#f5f5f5',
+            'grid_card_bg' => '#ffffff',
+            'grid_card_border' => '#e5e7eb',
+            'grid_card_hover_bg' => '#ffffff',
+            'grid_card_hover_border' => '#d1d5db',
+            'grid_label_font_size' => 13,
+            'grid_label_font_weight' => 400,
+            'grid_label_line_height' => 1.4,
+            'grid_value_font_size' => 14,
+            'grid_value_font_weight' => 500,
+            'grid_value_line_height' => 1.4,
+            'grid_empty_font_size' => 14,
+            'grid_empty_font_weight' => 400,
+            'grid_empty_line_height' => 1.4,
+            'action_transition_duration' => 0.2,
+            'action_disabled_opacity' => 0.5,
+            'action_disabled_bg' => '',
+            'action_edit_color' => '', 'action_edit_bg' => '', 'action_edit_hover_color' => '', 'action_edit_hover_bg' => '',
+            'action_confirm_color' => '', 'action_confirm_bg' => '', 'action_confirm_hover_color' => '', 'action_confirm_hover_bg' => '',
+            'action_reject_color' => '', 'action_reject_bg' => '', 'action_reject_hover_color' => '', 'action_reject_hover_bg' => '',
+            'action_info_color' => '', 'action_info_bg' => '', 'action_info_hover_color' => '', 'action_info_hover_bg' => '',
         ];
+        $options = array_merge($defaults, is_array($options) ? $options : []);
+        $listing_columns = class_exists('NELXJAF_Appointment_Listings')
+            ? NELXJAF_Appointment_Listings::instance(NELXJAF_Core::instance())->get_table_columns()
+            : [];
+
+        $render_column_rows = function($name, $selected, $labels = []) use ($listing_columns) {
+            $selected = is_array($selected) && $selected ? $selected : [];
+            $labels = is_array($labels) ? $labels : [];
+            ob_start(); ?>
+            <div class="nelx-column-repeater" data-name="<?php echo esc_attr($name); ?>">
+                <div class="nelx-column-repeater-items">
+                    <?php foreach ($selected as $column): $default_label = $listing_columns[$column] ?? ucwords(str_replace('_', ' ', $column)); ?>
+                        <div class="nelx-column-repeater-item">
+                            <select name="<?php echo esc_attr($this->option_name . '[' . $name . '][]'); ?>">
+                                <?php foreach ($listing_columns as $key => $label): ?>
+                                    <option value="<?php echo esc_attr($key); ?>" <?php selected($column, $key); ?>><?php echo esc_html($label); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <input type="text" class="nelx-column-custom-label regular-text" name="<?php echo esc_attr($this->option_name . '[' . str_replace('_columns','_labels',$name) . '][' . $column . ']'); ?>" value="<?php echo esc_attr($labels[$column] ?? ''); ?>" placeholder="<?php echo esc_attr($default_label); ?>" title="Custom label (optional)">
+                            <button type="button" class="button nelx-move-column nelx-move-up" title="Move up">↑</button><button type="button" class="button nelx-move-column nelx-move-down" title="Move down">↓</button><button type="button" class="button nelx-remove-column">&times;</button>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <button type="button" class="button nelx-add-column">+ <?php esc_html_e('Add Column', 'nelx-jetappt-frontend'); ?></button>
+                <p class="description"><?php esc_html_e('Add, remove and reorder the columns. Enter an optional custom label; leave it empty to use the default label.', 'nelx-jetappt-frontend'); ?></p>
+                <template class="nelx-column-template"><div class="nelx-column-repeater-item"><select name="<?php echo esc_attr($this->option_name . '[' . $name . '][]'); ?>"><?php foreach ($listing_columns as $key => $label): ?><option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option><?php endforeach; ?></select><input type="text" class="nelx-column-custom-label regular-text" name="<?php echo esc_attr($this->option_name . '[' . str_replace('_columns','_labels',$name) . '][__KEY__]'); ?>" value="" placeholder="Custom label (optional)" title="Custom label (optional)"><button type="button" class="button nelx-move-column nelx-move-up" title="Move up">↑</button><button type="button" class="button nelx-move-column nelx-move-down" title="Move down">↓</button><button type="button" class="button nelx-remove-column">&times;</button></div></template>
+            </div>
+            <?php return ob_get_clean();
+        };
         ?>
         <div class="nelx-jetappt-settings-card">
-            <h3><?php esc_html_e('Database Settings', 'nelx-jetappt-frontend'); ?></h3>
-            <p><?php esc_html_e('Configure the database table names used by the plugin. These must match your JetAppointments installation.', 'nelx-jetappt-frontend'); ?></p>
-            
-            <?php
-            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-            echo $this->render_two_column_grid($fields);
-            ?>
+            <h3><?php esc_html_e('Provider Mapping', 'nelx-jetappt-frontend'); ?></h3>
+            <p><?php esc_html_e('JetAppointments appointment tables are native and are handled automatically. Only the provider mapping table remains configurable.', 'nelx-jetappt-frontend'); ?></p>
+            <?php echo $this->render_two_column_grid([
+                ['content' => $this->get_field_html(esc_html__('Provider Meta Table', 'nelx-jetappt-frontend'), '<input type="text" id="provider_meta_table" name="' . esc_attr($this->option_name) . '[provider_meta_table]" value="' . esc_attr($options['provider_meta_table']) . '" class="regular-text" required>', esc_html__('Default: staff_list_for_appoi_meta. Maps WordPress users to provider profile posts.'))],
+                ['content' => $this->get_field_html(esc_html__('Provider Column', 'nelx-jetappt-frontend'), '<input type="text" id="provider_column" name="' . esc_attr($this->option_name) . '[provider_column]" value="' . esc_attr($options['provider_column']) . '" class="regular-text" required autocomplete="off">', esc_html__('Default: staff_id. Column containing the provider WordPress user ID.'))],
+            ]); ?>
+        </div>
+
+        <?php
+        $render_modal_field_rows = function($name, $view, $selected, $labels = []) {
+            $definitions = class_exists('NELXJAF_Appointment_Listings')
+                ? NELXJAF_Appointment_Listings::instance(NELXJAF_Core::instance())->get_modal_field_definitions($view)
+                : [];
+            $selected = is_array($selected) && $selected ? $selected : array_keys($definitions);
+            $labels = is_array($labels) ? $labels : [];
+            ob_start(); ?>
+            <div class="nelx-column-repeater nelx-modal-field-repeater" data-name="<?php echo esc_attr($name); ?>">
+                <div class="nelx-column-repeater-items">
+                    <?php foreach ($selected as $field): if (!isset($definitions[$field])) continue; ?>
+                        <div class="nelx-column-repeater-item">
+                            <select name="<?php echo esc_attr($this->option_name . '[' . $name . '][]'); ?>">
+                                <?php foreach ($definitions as $key => $label): ?>
+                                    <option value="<?php echo esc_attr($key); ?>" <?php selected($field, $key); ?>><?php echo esc_html($label); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <input type="text" class="nelx-column-custom-label regular-text" name="<?php echo esc_attr($this->option_name . '[' . str_replace('_fields','_labels',$name) . '][' . $field . ']'); ?>" value="<?php echo esc_attr($labels[$field] ?? ''); ?>" placeholder="<?php echo esc_attr($definitions[$field]); ?>" title="Custom label (optional)">
+                            <button type="button" class="button nelx-move-column nelx-move-up" title="Move up">↑</button><button type="button" class="button nelx-move-column nelx-move-down" title="Move down">↓</button><button type="button" class="button nelx-remove-column">&times;</button>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <button type="button" class="button nelx-add-column">+ <?php esc_html_e('Add Field', 'nelx-jetappt-frontend'); ?></button>
+                <p class="description"><?php esc_html_e('Add, remove and reorder fields. Enter an optional custom label; leave it empty to use the default label.', 'nelx-jetappt-frontend'); ?></p>
+                <template class="nelx-column-template"><div class="nelx-column-repeater-item"><select name="<?php echo esc_attr($this->option_name . '[' . $name . '][]'); ?>"><?php foreach ($definitions as $key => $label): ?><option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option><?php endforeach; ?></select><input type="text" class="nelx-column-custom-label regular-text" name="<?php echo esc_attr($this->option_name . '[' . str_replace('_fields','_labels',$name) . '][__KEY__]'); ?>" value="" placeholder="Custom label (optional)" title="Custom label (optional)"><button type="button" class="button nelx-move-column nelx-move-up" title="Move up">↑</button><button type="button" class="button nelx-move-column nelx-move-down" title="Move down">↓</button><button type="button" class="button nelx-remove-column">&times;</button></div></template>
+            </div>
+            <?php return ob_get_clean();
+        };
+        ?>
+
+        <div class="nelx-two-column-layout nelx-appointment-config-columns">
+            <div class="nelx-jetappt-settings-card">
+                <h3><?php esc_html_e('Staff / Provider Appointment Table', 'nelx-jetappt-frontend'); ?></h3>
+                <p><?php esc_html_e('Choose the columns shown by the new native staff appointment table shortcode and Elementor widget. Slot and Slot End are the native JetAppointments fields used for start and end time; use custom labels when you want different labels.', 'nelx-jetappt-frontend'); ?></p>
+                <?php echo $render_column_rows('staff_table_columns', $options['staff_table_columns'], $options['staff_table_labels']); ?>
+            </div>
+
+            <div class="nelx-jetappt-settings-card">
+                <h3><?php esc_html_e('Staff / Provider Appointment Info Modal', 'nelx-jetappt-frontend'); ?></h3>
+                <p><?php esc_html_e('Choose the fields shown in the staff/provider appointment information modal. Payment Status is the native JetAppointments payment status field and can be changed by the provider when included. Appointment Status is the separate custom appointment status field. Slot and Slot End are the native start/end timestamp fields.', 'nelx-jetappt-frontend'); ?></p>
+                <?php echo $render_modal_field_rows('staff_modal_fields', 'staff', $options['staff_modal_fields'], $options['staff_modal_labels']); ?>
+            </div>
+        </div>
+
+        <div class="nelx-two-column-layout nelx-appointment-config-columns">
+            <div class="nelx-jetappt-settings-card">
+                <h3><?php esc_html_e('Client Appointment Table', 'nelx-jetappt-frontend'); ?></h3>
+                <p><?php esc_html_e('Choose the columns shown by the new native client appointment table. Time uses the saved client-local appointment data when available and falls back to the provider time.', 'nelx-jetappt-frontend'); ?></p>
+                <?php echo $render_column_rows('client_table_columns', $options['client_table_columns'], $options['client_table_labels']); ?>
+            </div>
+
+            <div class="nelx-jetappt-settings-card">
+                <h3><?php esc_html_e('Client Appointment Info Modal', 'nelx-jetappt-frontend'); ?></h3>
+                <p><?php esc_html_e('Choose the fields shown in the client appointment information modal. Payment Status is read-only for clients when included; Appointment Status remains a separate field. Client date, time and timezone use appointment meta when available and fall back to provider time/WordPress timezone.', 'nelx-jetappt-frontend'); ?></p>
+                <?php echo $render_modal_field_rows('client_modal_fields', 'client', $options['client_modal_fields'], $options['client_modal_labels']); ?>
+            </div>
+        </div>
+
+        <div class="nelx-jetappt-settings-card">
+            <h3><?php esc_html_e('Table Appearance', 'nelx-jetappt-frontend'); ?></h3>
+            <p><?php esc_html_e('These settings apply to both native appointment table shortcodes. Elementor widgets can override their appearance from the Style tab.', 'nelx-jetappt-frontend'); ?></p>
+            <?php echo $this->render_two_column_grid([
+                ['content' => $this->get_field_html(esc_html__('Header Background', 'nelx-jetappt-frontend'), '<input type="text" class="nelx-jetappt-color-picker" name="' . esc_attr($this->option_name) . '[table_header_bg]" value="' . esc_attr($options['table_header_bg']) . '" data-default-color="">', esc_html__('Leave empty to inherit the site primary color.'))],
+                ['content' => $this->get_field_html(esc_html__('Header Text Color', 'nelx-jetappt-frontend'), '<input type="text" class="nelx-jetappt-color-picker" name="' . esc_attr($this->option_name) . '[table_header_text]" value="' . esc_attr($options['table_header_text']) . '" data-default-color="#ffffff">')],
+                ['content' => $this->get_field_html(esc_html__('Header Font Size', 'nelx-jetappt-frontend'), '<input type="number" min="8" max="32" name="' . esc_attr($this->option_name) . '[table_header_font_size]" value="' . esc_attr($options['table_header_font_size']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('Body Font Size', 'nelx-jetappt-frontend'), '<input type="number" min="8" max="32" name="' . esc_attr($this->option_name) . '[table_body_font_size]" value="' . esc_attr($options['table_body_font_size']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('Controls Font Size', 'nelx-jetappt-frontend'), '<input type="number" min="8" max="24" name="' . esc_attr($this->option_name) . '[table_control_font_size]" value="' . esc_attr($options['table_control_font_size']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('Row Hover Background', 'nelx-jetappt-frontend'), '<input type="text" class="nelx-jetappt-color-picker" name="' . esc_attr($this->option_name) . '[table_hover_bg]" value="' . esc_attr($options['table_hover_bg']) . '" data-default-color="#f5f5f5">')],
+            ]); ?>
+        </div>
+
+        <div class="nelx-jetappt-settings-card">
+            <h3><?php esc_html_e('Dashboard Appointment Grids', 'nelx-jetappt-frontend'); ?></h3>
+            <?php echo $this->render_two_column_grid([
+                ['content' => $this->get_field_html(esc_html__('Staff / Provider Maximum Appointments', 'nelx-jetappt-frontend'), '<input type="number" min="1" max="100" name="' . esc_attr($this->option_name) . '[staff_grid_limit]" value="' . esc_attr($options['staff_grid_limit']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('Client Maximum Appointments', 'nelx-jetappt-frontend'), '<input type="number" min="1" max="100" name="' . esc_attr($this->option_name) . '[client_grid_limit]" value="' . esc_attr($options['client_grid_limit']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('Staff Desktop Columns', 'nelx-jetappt-frontend'), '<input type="number" min="1" max="6" name="' . esc_attr($this->option_name) . '[staff_grid_columns_desktop]" value="' . esc_attr($options['staff_grid_columns_desktop']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('Staff Tablet Columns', 'nelx-jetappt-frontend'), '<input type="number" min="1" max="4" name="' . esc_attr($this->option_name) . '[staff_grid_columns_tablet]" value="' . esc_attr($options['staff_grid_columns_tablet']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('Client Desktop Columns', 'nelx-jetappt-frontend'), '<input type="number" min="1" max="6" name="' . esc_attr($this->option_name) . '[client_grid_columns_desktop]" value="' . esc_attr($options['client_grid_columns_desktop']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('Client Tablet Columns', 'nelx-jetappt-frontend'), '<input type="number" min="1" max="4" name="' . esc_attr($this->option_name) . '[client_grid_columns_tablet]" value="' . esc_attr($options['client_grid_columns_tablet']) . '" class="small-text">')],
+            ]); ?>
+            <p class="description"><?php esc_html_e('Upcoming appointments are ordered by the nearest appointment first. Mobile automatically uses one column. Elementor grid widgets can override the limit and column counts independently.', 'nelx-jetappt-frontend'); ?></p>
+        </div>
+
+        <div class="nelx-jetappt-settings-card">
+            <h3><?php esc_html_e('Dashboard Card Appearance', 'nelx-jetappt-frontend'); ?></h3>
+            <?php echo $this->render_two_column_grid([
+                ['content' => $this->get_field_html(esc_html__('Card Background', 'nelx-jetappt-frontend'), '<input type="text" class="nelx-jetappt-color-picker" name="' . esc_attr($this->option_name) . '[grid_card_bg]" value="' . esc_attr($options['grid_card_bg']) . '" data-default-color="#ffffff">')],
+                ['content' => $this->get_field_html(esc_html__('Card Border', 'nelx-jetappt-frontend'), '<input type="text" class="nelx-jetappt-color-picker" name="' . esc_attr($this->option_name) . '[grid_card_border]" value="' . esc_attr($options['grid_card_border']) . '" data-default-color="#e5e7eb">')],
+                ['content' => $this->get_field_html(esc_html__('Card Hover Background', 'nelx-jetappt-frontend'), '<input type="text" class="nelx-jetappt-color-picker" name="' . esc_attr($this->option_name) . '[grid_card_hover_bg]" value="' . esc_attr($options['grid_card_hover_bg']) . '" data-default-color="#ffffff">')],
+                ['content' => $this->get_field_html(esc_html__('Card Hover Border', 'nelx-jetappt-frontend'), '<input type="text" class="nelx-jetappt-color-picker" name="' . esc_attr($this->option_name) . '[grid_card_hover_border]" value="' . esc_attr($options['grid_card_hover_border']) . '" data-default-color="#d1d5db">')],
+                ['content' => $this->get_field_html(esc_html__('Label Font Size', 'nelx-jetappt-frontend'), '<input type="number" min="8" max="32" name="' . esc_attr($this->option_name) . '[grid_label_font_size]" value="' . esc_attr($options['grid_label_font_size']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('Label Font Weight', 'nelx-jetappt-frontend'), '<input type="number" min="100" max="900" step="100" name="' . esc_attr($this->option_name) . '[grid_label_font_weight]" value="' . esc_attr($options['grid_label_font_weight']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('Label Line Height', 'nelx-jetappt-frontend'), '<input type="number" min="1" max="3" step="0.1" name="' . esc_attr($this->option_name) . '[grid_label_line_height]" value="' . esc_attr($options['grid_label_line_height']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('Value Font Size', 'nelx-jetappt-frontend'), '<input type="number" min="8" max="32" name="' . esc_attr($this->option_name) . '[grid_value_font_size]" value="' . esc_attr($options['grid_value_font_size']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('Value Font Weight', 'nelx-jetappt-frontend'), '<input type="number" min="100" max="900" step="100" name="' . esc_attr($this->option_name) . '[grid_value_font_weight]" value="' . esc_attr($options['grid_value_font_weight']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('Value Line Height', 'nelx-jetappt-frontend'), '<input type="number" min="1" max="3" step="0.1" name="' . esc_attr($this->option_name) . '[grid_value_line_height]" value="' . esc_attr($options['grid_value_line_height']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('No Upcoming Appointments Font Size', 'nelx-jetappt-frontend'), '<input type="number" min="8" max="32" name="' . esc_attr($this->option_name) . '[grid_empty_font_size]" value="' . esc_attr($options['grid_empty_font_size']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('No Upcoming Appointments Font Weight', 'nelx-jetappt-frontend'), '<input type="number" min="100" max="900" step="100" name="' . esc_attr($this->option_name) . '[grid_empty_font_weight]" value="' . esc_attr($options['grid_empty_font_weight']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('No Upcoming Appointments Line Height', 'nelx-jetappt-frontend'), '<input type="number" min="1" max="3" step="0.1" name="' . esc_attr($this->option_name) . '[grid_empty_line_height]" value="' . esc_attr($options['grid_empty_line_height']) . '" class="small-text">')],
+            ]); ?>
+        </div>
+
+        <div class="nelx-jetappt-settings-card">
+            <h3><?php esc_html_e('Action Buttons General Style', 'nelx-jetappt-frontend'); ?></h3>
+            <p><?php esc_html_e('These settings apply to action buttons in the native appointment tables, calendar and dashboard grids. Leave color fields empty to keep the original action-button shortcode defaults.', 'nelx-jetappt-frontend'); ?></p>
+            <?php echo $this->render_two_column_grid([
+                ['content' => $this->get_field_html(esc_html__('Transition Duration (seconds)', 'nelx-jetappt-frontend'), '<input type="number" min="0" max="3" step="0.1" name="' . esc_attr($this->option_name) . '[action_transition_duration]" value="' . esc_attr($options['action_transition_duration']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('Disabled Opacity', 'nelx-jetappt-frontend'), '<input type="number" min="0.1" max="1" step="0.01" name="' . esc_attr($this->option_name) . '[action_disabled_opacity]" value="' . esc_attr($options['action_disabled_opacity']) . '" class="small-text">')],
+                ['content' => $this->get_field_html(esc_html__('Disabled Background', 'nelx-jetappt-frontend'), '<input type="text" class="nelx-jetappt-color-picker" name="' . esc_attr($this->option_name) . '[action_disabled_bg]" value="' . esc_attr($options['action_disabled_bg']) . '" data-default-color="">')],
+            ]); ?>
+        </div>
+
+        <div class="nelx-jetappt-settings-card">
+            <h3><?php esc_html_e('Action Button Colors', 'nelx-jetappt-frontend'); ?></h3>
+            <?php foreach ([
+                'edit' => 'Edit / Reschedule', 'confirm' => 'Approve', 'reject' => 'Cancel', 'info' => 'Info'
+            ] as $button => $label): ?>
+                <h4><?php echo esc_html($label); ?></h4>
+                <?php echo $this->render_two_column_grid([
+                    ['content' => $this->get_field_html(esc_html__('Normal Icon Color', 'nelx-jetappt-frontend'), '<input type="text" class="nelx-jetappt-color-picker" name="' . esc_attr($this->option_name) . '[action_' . $button . '_color]" value="' . esc_attr($options['action_' . $button . '_color']) . '" data-default-color="">')],
+                    ['content' => $this->get_field_html(esc_html__('Normal Background', 'nelx-jetappt-frontend'), '<input type="text" class="nelx-jetappt-color-picker" name="' . esc_attr($this->option_name) . '[action_' . $button . '_bg]" value="' . esc_attr($options['action_' . $button . '_bg']) . '" data-default-color="">')],
+                    ['content' => $this->get_field_html(esc_html__('Hover Icon Color', 'nelx-jetappt-frontend'), '<input type="text" class="nelx-jetappt-color-picker" name="' . esc_attr($this->option_name) . '[action_' . $button . '_hover_color]" value="' . esc_attr($options['action_' . $button . '_hover_color']) . '" data-default-color="">')],
+                    ['content' => $this->get_field_html(esc_html__('Hover Background', 'nelx-jetappt-frontend'), '<input type="text" class="nelx-jetappt-color-picker" name="' . esc_attr($this->option_name) . '[action_' . $button . '_hover_bg]" value="' . esc_attr($options['action_' . $button . '_hover_bg']) . '" data-default-color="">')],
+                ]); ?>
+            <?php endforeach; ?>
         </div>
         <?php
     }
-    
+
     private function render_google_meet_section() {
         $options = get_option($this->google_meet_option_name, []);
         $redirect_uri = admin_url('admin-ajax.php?action=google_meet_auth');
@@ -1636,6 +1800,17 @@ class NELXJAF_Settings_Page {
                             ' . esc_html__('Verify Cron Setup', 'nelx-jetappt-frontend') . '
                         </button>
                         <div id="nelx-appt-cron-test-result" style="margin-top:10px;"></div>
+                        <div id="nelx-appt-cron-manual-confirm" style="margin-top:15px; display:none; padding:15px; background:#f8f9fa; border:1px solid #ddd; border-radius:4px;">
+                            <p style="margin-top:0;"><strong>' . esc_html__('Manual Confirmation Required', 'nelx-jetappt-frontend') . '</strong></p>
+                            <p>' . esc_html__('Since shell_exec is disabled on this server, we cannot automatically verify the cron setup.', 'nelx-jetappt-frontend') . '</p>
+                            <p>' . esc_html__('Please confirm that you have added the cron command to your crontab:', 'nelx-jetappt-frontend') . '</p>
+                            <pre style="background:#f1f1f1;padding:10px;border-radius:4px;overflow-x:auto;border:1px solid #ddd;">* * * * * ' . esc_html($php_path) . ' ' . esc_html($cron_file_path) . ' >/dev/null 2>&1</pre>
+                            <button type="button" id="nelx-appt-confirm-cron" class="button button-primary">
+                                <span class="dashicons dashicons-yes"></span>
+                                ' . esc_html__('I have added the cron command', 'nelx-jetappt-frontend') . '
+                            </button>
+                            <p class="description" style="margin-top:10px; margin-bottom:0;">' . esc_html__('Click this button after you have added the cron command to your crontab.', 'nelx-jetappt-frontend') . '</p>
+                        </div>
                         <p class="description">
                             ' . esc_html__('This test checks if your cron job is properly configured.', 'nelx-jetappt-frontend') . '
                         </p>',

@@ -9,6 +9,15 @@ if (isset($_SERVER['REQUEST_METHOD']) || isset($_SERVER['HTTP_HOST'])) {
     exit('Direct access not allowed');
 }
 
+// Check if this is a test request
+if (isset($argv) && in_array('--test', $argv)) {
+    // CLI test mode
+    echo "Cron handler is accessible and working.\n";
+    echo "PHP Version: " . PHP_VERSION . "\n";
+    echo "WordPress Path: " . __DIR__ . "\n";
+    exit(0);
+}
+
 // Dynamically find wp-load.php by traversing up the directory tree
 function nelxjaf_find_wp_load() {
     $dir = dirname(__FILE__);

@@ -11,6 +11,8 @@ class NELXJAF_Google_Meet_Integration {
     private $appt_table;
     private $appt_meta_table;
     private $provider_column;
+    private $is_shortcode_present = false;
+    private $assets_enqueued = false;
 
     public static function instance() {
         if (is_null(self::$instance)) {
@@ -24,13 +26,11 @@ class NELXJAF_Google_Meet_Integration {
         $this->wpdb = $wpdb;
         
         $settings = get_option('nelx_jetappt_settings', [
-            'appt_table' => 'jet_appointments',
-            'appt_meta_table' => 'jet_appointments_meta',
             'provider_column' => 'staff_id',
         ]);
         
-        $this->appt_table = $wpdb->prefix . ltrim($settings['appt_table'] ?? 'jet_appointments', $wpdb->prefix);
-        $this->appt_meta_table = $wpdb->prefix . ltrim($settings['appt_meta_table'] ?? 'jet_appointments_meta', $wpdb->prefix);
+        $this->appt_table = $wpdb->prefix . 'jet_appointments';
+        $this->appt_meta_table = $wpdb->prefix . 'jet_appointments_meta';
         $this->provider_column = $settings['provider_column'] ?? 'staff_id';
         
         add_action('init', [$this, 'init']);
@@ -38,13 +38,118 @@ class NELXJAF_Google_Meet_Integration {
 
     public function init() {
         add_shortcode('nelx_google_meet_settings', [$this, 'provider_settings_shortcode']);
-        add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
+        add_action('wp_enqueue_scripts', [$this, 'enqueue_assets'], 20);
+        add_action('wp_footer', [$this, 'maybe_enqueue_assets'], 1);
+    }
+
+    /**
+     * Check if the shortcode is present in content
+     */
+    public function check_shortcode_presence() {
+        global $post, $wp_query;
+        
+        // Check if we're on a page that might contain the shortcode
+        if (is_singular() && isset($post)) {
+            // Check post content
+            if (has_shortcode($post->post_content, 'nelx_google_meet_settings')) {
+                $this->is_shortcode_present = true;
+                return;
+            }
+            
+            // Check if page builder content contains the shortcode
+            $content = $post->post_content;
+            
+            // Check for Elementor widget by scanning for the widget name
+            if (strpos($content, 'widget-nelx_google_meet_settings') !== false || 
+                strpos($content, 'nelx_google_meet_settings') !== false) {
+                $this->is_shortcode_present = true;
+                return;
+            }
+        }
+        
+        // Check if we're in Elementor preview or editor
+        if (isset($_GET['elementor-preview']) || isset($_GET['action']) && $_GET['action'] === 'elementor') {
+            $this->is_shortcode_present = true;
+            return;
+        }
+        
+        // Check if the current page is being rendered via Elementor
+        if (defined('ELEMENTOR_VERSION') && \Elementor\Plugin::$instance->editor->is_edit_mode()) {
+            $this->is_shortcode_present = true;
+            return;
+        }
     }
 
     public function enqueue_assets() {
+        // Don't enqueue on admin pages except Elementor editor
+        if (is_admin() && !$this->is_elementor_editor()) {
+            return;
+        }
+        
+        // Check if shortcode is present on the page
+        $this->check_shortcode_presence();
+        
+        // Only enqueue if shortcode is present
+        if ($this->is_shortcode_present && !$this->assets_enqueued) {
+            $this->do_enqueue_assets();
+        }
+    }
+
+    /**
+     * Check if Elementor editor is active
+     */
+    private function is_elementor_editor() {
+        if (!defined('ELEMENTOR_VERSION')) {
+            return false;
+        }
+        
+        if (isset($_GET['action']) && $_GET['action'] === 'elementor') {
+            return true;
+        }
+        
+        if (isset($_GET['elementor-preview'])) {
+            return true;
+        }
+        
+        if (isset($_POST['action']) && $_POST['action'] === 'elementor_ajax') {
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Fallback: Check in footer if assets need to be loaded
+     * (Useful for dynamically loaded content)
+     */
+    public function maybe_enqueue_assets() {
+        global $wp_scripts, $wp_styles;
+        
+        // If assets were already enqueued, we're done
+        if ($this->assets_enqueued) {
+            return;
+        }
+        
+        // Check if the shortcode was rendered in footer or dynamic content
+        $this->check_shortcode_presence();
+        
+        if ($this->is_shortcode_present && !$this->assets_enqueued) {
+            $this->do_enqueue_assets();
+        }
+    }
+
+    /**
+     * Actually enqueue the assets
+     */
+    private function do_enqueue_assets() {
+        if ($this->assets_enqueued) {
+            return;
+        }
+        
         $plugin_dir = NELXJAF_PLUGIN_DIR;
         $plugin_url = NELXJAF_PLUGIN_URL;
         
+        // Enqueue CSS
         $css_file = $plugin_dir . 'assets/css/nelx-google-meet.min.css';
         if (file_exists($css_file)) {
             wp_enqueue_style(
@@ -55,6 +160,7 @@ class NELXJAF_Google_Meet_Integration {
             );
         }
         
+        // Enqueue JS
         $js_file = $plugin_dir . 'assets/js/nelx-google-meet.min.js';
         if (file_exists($js_file)) {
             wp_enqueue_script(
@@ -69,9 +175,14 @@ class NELXJAF_Google_Meet_Integration {
                 'nonce' => wp_create_nonce('nelx_google_meet_nonce')
             ]);
         }
+        
+        $this->assets_enqueued = true;
     }
 
     public function provider_settings_shortcode($atts) {
+        // Mark that shortcode is present
+        $this->is_shortcode_present = true;
+        
         if (!is_user_logged_in()) {
             return '<div class="nelx-notice">' . esc_html__('Login required to configure Google Meet.', 'nelx-jetappt-frontend') . '</div>';
         }

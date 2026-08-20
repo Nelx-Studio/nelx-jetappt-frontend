@@ -1,0 +1,773 @@
+/* Email Templates Styles */
+.nelx-jetappt-email-repeater {
+  margin-bottom: 30px;
+}
+
+.nelx-jetappt-repeater-items {
+  margin-bottom: 15px;
+}
+
+.nelx-jetappt-repeater-item {
+  background: #fff;
+  margin-bottom: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: visible !important;
+}
+
+/* Item Header Styles */
+.nelx-jetappt-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background: #fff;
+  cursor: pointer;
+  border-bottom: 1px solid #ddd;
+}
+
+.nelx-jetappt-item-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 500;
+  color: #23282d;
+  width: auto;
+  text-align: left;
+}
+
+.nelx-jetappt-item-toggle .dashicons {
+  margin-right: 5px;
+  transition: transform 0.2s ease;
+}
+
+.nelx-jetappt-repeater-item.expanded .nelx-jetappt-item-toggle .dashicons {
+  transform: rotate(180deg);
+}
+
+.item-title-text {
+  margin-left: 5px;
+}
+
+/* Item Actions */
+.nelx-jetappt-item-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.nelx-jetappt-item-actions .button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px !important;
+  height: 32px;
+  min-width: 32px;
+  padding: 0 10px;
+  text-align: center;
+  border: 1px solid #dcdcde;
+  background: #fff;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+}
+
+.nelx-jetappt-item-actions .button:hover {
+  color: #00B7C2 !important;
+  border-color: #F4511E !important;  
+}
+
+.nelx-jetappt-item-actions .button:hover .dashicons {
+  color: #00B7C2 !important;  
+}
+
+.nelx-jetappt-item-actions .button .dashicons {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  line-height: 1;
+  margin: 0;
+  padding: 0;
+  color: #787c82 !important;
+}
+
+.nelx-jetappt-load-fields {
+    margin-top:10px !important;
+}
+
+/* Remove focus outline */
+.nelx-jetappt-item-actions .button:focus,
+.nelx-jetappt-item-actions .button:active,
+.nelx-jetappt-item-actions .button .dashicons:focus,
+.nelx-jetappt-item-actions .button .dashicons:active {
+  outline: none;
+  box-shadow: none;
+  border-color: #F4511E !important;
+}
+
+/* Button containers for inline messages */
+.nelx-button-container {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.nelx-button-container .button {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.nelx-button-container input,
+.nelx-button-container select {
+  flex: 1;
+  min-width: 150px;
+}
+
+/* Item Content */
+.nelx-jetappt-item-content {
+  padding: 20px;
+  background: #f9f9f9;
+  overflow: visible !important;
+}
+
+/* Form Layout - Keep for backwards compatibility but cards override */
+.nelx-jetappt-form-table {
+  width: 100%;
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+
+.nelx-jetappt-form-row {
+  display: flex;
+  margin-bottom: 24px;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.nelx-jetappt-form-label {
+  width: 200px;
+  padding-right: 20px;
+}
+
+.nelx-jetappt-form-label label {
+  font-weight: 600;
+  color: #23282d;
+  display: block;
+}
+
+.nelx-jetappt-form-field {
+  flex: 1;
+  min-width: 200px;
+  overflow: visible !important;
+}
+
+/* Hook Name Container */
+.nelx-jetappt-hook-name-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nelx-jetappt-hook-name {
+  width: 100%;
+  background: #f5f5f5;
+  padding: 10px;
+  border-radius: 4px;
+  font-family: monospace;
+  word-break: break-all;
+  border: 1px solid #ddd;
+  font-size: 13px;
+  margin-bottom: 5px;
+}
+
+.nelx-jetappt-copy-hook {
+  align-self: flex-start;
+  margin-top:10px !important;
+}
+
+/* Insert Field Button Styles */
+.njet-insert-field-wrapper {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  overflow: visible !important;
+}
+
+/* Regular input fields */
+.njet-insert-field-wrapper .njet-insert-field-target {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
+/* Textarea (editor) */
+.njet-insert-field-wrapper .njet-insert-field-target[data-field-type="textarea"] {
+  flex: 1;
+  width: auto;
+  min-width: 200px;
+}
+
+/* For the wrapper that contains the editor */
+.nelx-jetappt-form-field .njet-insert-field-wrapper {
+  width: 100%;
+}
+
+/* Ensure the editor textarea takes full available space */
+.nelx-jetappt-form-field .njet-insert-field-wrapper .njet-editor-textarea {
+  width: 100% !important;
+}
+
+/* Insert button styling */
+.njet-insert-field-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  padding: 0 10px !important;
+  text-align: center !important;
+  border: 1px solid #dcdcde !important;
+  background: #fff !important;
+  transition: all 0.2s ease !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  margin: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+.njet-insert-field-button:hover {
+  color: #00B7C2 !important;
+  border-color: #F4511E !important;
+  background: #fff !important;
+}
+
+.njet-insert-field-button:hover .dashicons {
+  color: #00B7C2 !important;
+}
+
+.njet-insert-field-button .dashicons {
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: #787c82 !important;
+}
+
+.njet-insert-field-button:focus,
+.njet-insert-field-button:active {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: #F4511E !important;
+}
+
+/* Insert buttons group (for editor) */
+.njet-insert-buttons-group {
+  display: flex;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+/* OVERRIDE: For cards, don't use absolute positioning - use flex row */
+.nelx-field-card .njet-insert-buttons-group {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  margin-left: 8px;
+}
+
+/* For editor inside cards - keep button beside, not on top */
+.nelx-field-card .njet-insert-field-wrapper {
+  flex-direction: row !important;
+  align-items: flex-start !important;
+}
+
+.nelx-field-card .njet-editor-textarea {
+  padding-top: 8px !important;
+}
+
+/* For non-card contexts, keep absolute positioning for editor buttons */
+.nelx-jetappt-form-field .njet-insert-field-wrapper .njet-insert-buttons-group {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 10;
+}
+
+/* Form Selector Dropdown Styles */
+.njet-form-select-wrapper {
+  position: relative;
+  max-width: 450px;
+}
+
+.njet-form-select-trigger {
+  background: #fff;
+  border: 1px solid #7e8993;
+  border-radius: 4px;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: border-color 0.15s ease-in-out;
+}
+
+.njet-form-select-trigger:hover {
+  border-color: #F4511E;
+}
+
+.njet-form-select-trigger .dashicons {
+  color: #787c82;
+}
+
+.njet-form-select-dropdown {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  background: #fff;
+  border: 1px solid #ccd0d4;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+  z-index: 100000;
+  border-radius: 4px;
+  max-height: 300px;
+  overflow: hidden;
+}
+
+.njet-form-search-header {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  background: #f9f9f9;
+}
+
+.njet-form-search {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 13px;
+}
+
+.njet-form-search:focus {
+  border-color: #2271b1;
+  box-shadow: 0 0 0 1px #2271b1;
+  outline: 2px solid transparent;
+}
+
+.njet-form-list {
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.njet-form-list-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.njet-form-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.1s ease;
+}
+
+.njet-form-item:hover {
+  background: #f0f6fc;
+}
+
+.njet-form-name {
+  font-weight: 500;
+  color: #23282d;
+}
+
+.njet-form-id {
+  color: #646970;
+  font-size: 11px;
+}
+
+/* Quick Insert Dropdown */
+.njet-quick-insert-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 350px;
+  min-width: 280px;
+  max-width: 350px;
+  background: #fff;
+  border: 1px solid #ccd0d4;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  z-index: 100000;
+  border-radius: 4px;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+  animation: njet-dropdown-fade 0.2s ease;
+}
+
+/* If dropdown would go off screen, position above */
+.njet-quick-insert-dropdown.position-top {
+    top: auto;
+    bottom: 100%;
+}
+
+@keyframes njet-dropdown-fade {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.njet-quick-insert-header {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  background: #f9f9f9;
+  border-radius: 4px 4px 0 0;
+}
+
+.njet-quick-insert-search {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 13px;
+}
+
+.njet-quick-insert-search:focus {
+  border-color: #2271b1;
+  box-shadow: 0 0 0 1px #2271b1;
+  outline: 2px solid transparent;
+}
+
+.njet-quick-insert-fields {
+  overflow-y: auto;
+  max-height: 350px;
+  padding: 10px 0;
+}
+
+.njet-quick-insert-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.njet-quick-insert-group {
+  margin: 0 0 10px;
+  padding: 0;
+}
+
+.njet-quick-insert-group-title {
+  padding: 5px 10px;
+  background: #f0f0f0;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #646970;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.njet-quick-insert-group ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.njet-quick-insert-field {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f1;
+  display: flex;
+  flex-direction: column;
+  transition: background 0.1s ease;
+}
+
+.njet-quick-insert-field:hover {
+  background: #f5f5f5;
+}
+
+.njet-quick-insert-field-name {
+  font-family: monospace;
+  font-size: 12px;
+  color: #0073aa;
+  margin-bottom: 2px;
+}
+
+.njet-quick-insert-field-label {
+  font-size: 11px;
+  color: #646970;
+}
+
+.njet-quick-insert-loading,
+.njet-quick-insert-empty {
+  padding: 20px;
+  text-align: center;
+  color: #a0a5aa;
+  font-style: italic;
+}
+
+/* Default Template Badge */
+.default-template-badge {
+  background: #f0f0f1;
+  color: #646970;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  margin-left: 10px;
+  font-weight: normal;
+}
+
+/* Placeholder Insert Button Styles */
+.njet-placeholder-insert-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  padding: 0 10px !important;
+  border: 1px solid #dcdcde !important;
+  background: #fff !important;
+  transition: all 0.2s ease !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  margin: 0 !important;
+}
+
+.njet-placeholder-insert-button:hover {
+  color: #00B7C2 !important;
+  border-color: #F4511E !important;
+  background: #fff !important;
+}
+
+.njet-placeholder-insert-button .dashicons {
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: #787c82 !important;
+}
+
+.njet-placeholder-insert-button:hover .dashicons {
+  color: #00B7C2 !important;
+}
+
+.njet-placeholder-insert-button:focus,
+.njet-placeholder-insert-button:active {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: #F4511E !important;
+}
+
+/* Placeholder Dropdown Styles */
+.njet-placeholder-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 350px;
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 999999;
+    border-radius: 4px;
+    max-height: 400px;
+    display: flex;
+    flex-direction: column;
+    animation: njet-dropdown-fade 0.2s ease;
+}
+
+/* Position above if needed */
+.njet-placeholder-dropdown.position-top {
+    top: auto;
+    bottom: 100%;
+}
+
+/* Header with search input */
+.njet-placeholder-header {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    background: #f9f9f9;
+    border-radius: 4px 4px 0 0;
+}
+
+.njet-placeholder-search {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 13px;
+}
+
+.njet-placeholder-search:focus {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+    outline: 2px solid transparent;
+}
+
+/* Scrollable items container */
+.njet-placeholder-items {
+    overflow-y: auto;
+    max-height: 350px;
+    padding: 10px 0;
+}
+
+.njet-placeholder-group {
+    margin: 0 0 10px;
+    padding: 0;
+}
+
+.njet-placeholder-group-title {
+    padding: 5px 10px;
+    background: #f0f0f0;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #666;
+    border-bottom: 1px solid #e0e0e0;
+    margin: 0;
+}
+
+.njet-placeholder-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.njet-placeholder-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f1;
+    transition: background 0.1s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.njet-placeholder-item:hover {
+    background: #f5f5f5;
+}
+
+.njet-placeholder-name {
+    font-family: monospace;
+    font-size: 12px;
+    color: #0073aa;
+    margin-bottom: 2px;
+    font-weight: 500;
+}
+
+.njet-placeholder-desc {
+    font-size: 11px;
+    color: #666;
+}
+
+/* Loading/Empty states */
+.njet-placeholder-loading,
+.njet-placeholder-empty {
+    padding: 20px;
+    text-align: center;
+    color: #999;
+    font-style: italic;
+}
+
+/* Responsive adjustments */
+@media (max-width: 782px) {
+  .njet-insert-field-wrapper {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .njet-insert-field-wrapper .njet-insert-field-target {
+    width: 100% !important;
+  }
+  
+  .njet-insert-field-button {
+    width: 100% !important;
+    min-width: auto !important;
+  }
+  
+  .njet-quick-insert-dropdown,
+  .njet-form-select-dropdown {
+    width: 280px;
+  }
+  
+  .njet-insert-buttons-group.njet-stack-buttons {
+    position: static !important;
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+    margin-top: 5px;
+  }
+  
+  .njet-insert-buttons-group .button {
+    flex: 1;
+  }
+  
+  .njet-form-select-wrapper {
+    max-width: 100%;
+  }
+  
+  /* Override: On mobile, make buttons stack */
+  .nelx-field-card .njet-insert-field-wrapper {
+    flex-direction: column !important;
+  }
+  
+  .nelx-field-card .njet-insert-buttons-group {
+    margin-left: 0 !important;
+    margin-top: 8px;
+  }
+  
+  /* On mobile, absolute positioned button becomes relative */
+  .nelx-jetappt-form-field .njet-insert-field-wrapper .njet-insert-buttons-group {
+    position: static;
+    margin-top: 8px;
+  }
+  
+  .nelx-jetappt-form-row {
+    flex-direction: column;
+  }
+  
+  .nelx-jetappt-form-label {
+    width: 100%;
+    padding-right: 0;
+    margin-bottom: 10px;
+  }
+  
+  .nelx-jetappt-item-actions {
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  
+  .nelx-jetappt-item-actions .button {
+    flex: 1;
+    min-width: auto;
+  }
+  
+  .nelx-button-container {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .nelx-button-container input,
+  .nelx-button-container select {
+    width: 100%;
+    min-width: auto;
+  }
+}

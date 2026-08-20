@@ -1058,6 +1058,7 @@ class NELXJAF_Custom_Emails {
             'debug' => []
         ];
         
+        // Check if table exists
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         $table_exists = $wpdb->get_var(
             $wpdb->prepare("SHOW TABLES LIKE %s", $appt_table)
@@ -1068,8 +1069,8 @@ class NELXJAF_Custom_Emails {
             return $result;
         }
         
-        $auto_delete_past = $options['auto_delete_past'] ?? '0';
-        if ($auto_delete_past === '1') {
+        // Delete past appointments
+        if (($options['auto_delete_past'] ?? '0') === '1') {
             $days = $options['auto_delete_past_days'] ?? '7';
             if ($days === 'custom') {
                 $days = $options['auto_delete_past_custom'] ?? '7';
@@ -1082,16 +1083,38 @@ class NELXJAF_Custom_Emails {
             
             $current_timestamp = current_time('timestamp');
             $cutoff_timestamp = $current_timestamp - ($days * DAY_IN_SECONDS);
-            $cutoff_date = gmdate('Y-m-d H:i:s', $cutoff_timestamp);
             
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $result['past_deleted'] = $wpdb->query(
-                $wpdb->prepare("DELETE FROM {$appt_table} WHERE date < %s", $cutoff_date)
-            );
+            // Check column types
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $date_column_type = $wpdb->get_var("SHOW COLUMNS FROM {$appt_table} LIKE 'date'");
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $slot_column_type = $wpdb->get_var("SHOW COLUMNS FROM {$appt_table} LIKE 'slot'");
             
-            if ($result['past_deleted'] === false) {
-                $error = $wpdb->last_error;
-                $result['errors'][] = 'Failed to delete past appointments: ' . $error;
+            $where_conditions = [];
+            
+            if ($date_column_type) {
+                $where_conditions[] = $wpdb->prepare("date < %d", $cutoff_timestamp);
+            }
+            
+            if ($slot_column_type) {
+                $where_conditions[] = $wpdb->prepare("slot < %d", $cutoff_timestamp);
+            }
+            
+            if (empty($where_conditions)) {
+                $result['errors'][] = 'Neither date nor slot column found in appointments table';
+            } else {
+                $where_clause = implode(' OR ', $where_conditions);
+                $where_clause .= " AND appointment_status != 'canceled'";
+                
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                $sql = "DELETE FROM {$appt_table} WHERE {$where_clause}";
+                
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                $result['past_deleted'] = $wpdb->query($sql);
+                
+                if ($result['past_deleted'] === false) {
+                    $result['errors'][] = 'Failed to delete past appointments: ' . $wpdb->last_error;
+                }
             }
             
             // Clear cache since we deleted records
@@ -1099,16 +1122,15 @@ class NELXJAF_Custom_Emails {
             wp_cache_delete('nelx_appointments_count', 'nelx_appointments');
         }
         
-        $auto_delete_canceled = $options['auto_delete_canceled'] ?? '0';
-        if ($auto_delete_canceled === '1') {
+        // Delete canceled appointments
+        if (($options['auto_delete_canceled'] ?? '0') === '1') {
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $result['canceled_deleted'] = $wpdb->query(
                 $wpdb->prepare("DELETE FROM {$appt_table} WHERE appointment_status = %s", 'canceled')
             );
             
             if ($result['canceled_deleted'] === false) {
-                $error = $wpdb->last_error;
-                $result['errors'][] = 'Failed to delete canceled appointments: ' . $error;
+                $result['errors'][] = 'Failed to delete canceled appointments: ' . $wpdb->last_error;
             }
             
             // Clear cache since we deleted records

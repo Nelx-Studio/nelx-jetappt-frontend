@@ -369,9 +369,11 @@
             var button = $(this);
             var originalText = button.text();
             var resultContainer = $('#nelx-appt-cron-test-result');
+            var manualConfirm = $('#nelx-appt-cron-manual-confirm');
             
-            button.prop('disabled', true).text(nelx_jetappt_data.i18n.test_running || 'Test running...');
+            button.prop('disabled', true).text(nelx_jetappt_data.i18n.test_running || 'Testing...');
             resultContainer.html('<div class="notice notice-info"><p>' + (nelx_jetappt_data.i18n.test_running || 'Testing cron setup...') + '</p></div>');
+            manualConfirm.hide();
             
             $.post(ajaxurl, {
                 action: 'nelx_test_appointment_automation',
@@ -380,49 +382,89 @@
                 var messageClass = response.success ? 'notice-success' : 'notice-error';
                 var message = response.data.message;
                 
-                if (response.data.log_details) {
-                    message += '<br><small style="display:block;margin-top:8px;font-size:12px;opacity:0.8;">';
-                    if (response.data.log_details.reminders > 0) {
-                        message += '• ' + response.data.log_details.reminders + ' reminders would be sent<br>';
-                    }
-                    if (response.data.log_details.past_appointments > 0) {
-                        message += '• ' + response.data.log_details.past_appointments + ' past appointments would be deleted<br>';
-                    }
-                    if (response.data.log_details.canceled_appointments > 0) {
-                        message += '• ' + response.data.log_details.canceled_appointments + ' canceled appointments would be deleted<br>';
-                    }
-                    if (response.data.log_details.reminders === 0 && 
-                        response.data.log_details.past_appointments === 0 && 
-                        response.data.log_details.canceled_appointments === 0) {
-                        message += '• No appointments would be processed<br>';
-                    }
-                    message += '</small>';
-                }
-                
+                // Build the log display
+                var logHtml = '';
                 if (response.data.log) {
-                    message += '<br><small style="display:block;margin-top:8px;font-size:12px;opacity:0.8;">' + 
-                              response.data.log.replace(/\n/g, '<br>') + '</small>';
+                    logHtml = '<pre style="background:#f5f5f5;padding:10px;border-radius:4px;overflow-x:auto;margin-top:10px;font-size:12px;line-height:1.6;">' + 
+                              response.data.log.replace(/\n/g, '<br>') + '</pre>';
                 }
                 
-                resultContainer.html('<div class="notice ' + messageClass + '"><p>' + message + '</p></div>');
+                // Build setup instructions if available
+                var instructionsHtml = '';
+                if (response.data.setup_instructions) {
+                    instructionsHtml = '<pre style="background:#f5f5f5;padding:10px;border-radius:4px;overflow-x:auto;margin-top:10px;font-size:12px;line-height:1.6;border:1px solid #ddd;">' + 
+                                       response.data.setup_instructions.replace(/\n/g, '<br>') + '</pre>';
+                }
+                
+                resultContainer.html('<div class="notice ' + messageClass + '"><p>' + message + '</p>' + logHtml + instructionsHtml + '</div>');
+                
+                // Show manual confirm button if required
+                if (response.data.requires_manual_confirmation) {
+                    manualConfirm.show();
+                } else {
+                    manualConfirm.hide();
+                }
+                
                 button.prop('disabled', false).text(originalText);
                 
-                setTimeout(function() {
-                    resultContainer.fadeOut(500, function() {
-                        $(this).html('');
-                        $(this).show();
-                    });
-                }, 8000);
-            }).fail(function() {
-                resultContainer.html('<div class="notice notice-error"><p>' + (nelx_jetappt_data.i18n.test_error || 'Error testing cron setup') + '</p></div>');
+                // Auto-hide after 30 seconds (only if not showing manual confirm)
+                if (!response.data.requires_manual_confirmation) {
+                    setTimeout(function() {
+                        resultContainer.fadeOut(500, function() {
+                            $(this).html('').show();
+                        });
+                    }, 30000);
+                }
+            }).fail(function(xhr, status, error) {
+                resultContainer.html('<div class="notice notice-error"><p>' + (nelx_jetappt_data.i18n.test_error || 'Error testing cron setup: ') + error + '</p></div>');
                 button.prop('disabled', false).text(originalText);
+                manualConfirm.hide();
+            });
+        });
+        
+        // Manual confirmation handler
+        $('#nelx-appt-confirm-cron').on('click', function() {
+            var button = $(this);
+            var originalText = button.html();
+            var resultContainer = $('#nelx-appt-cron-test-result');
+            var manualConfirm = $('#nelx-appt-cron-manual-confirm');
+            
+            button.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> ' + (nelx_jetappt_data.i18n.confirming || 'Confirming...'));
+            resultContainer.html('<div class="notice notice-info"><p>' + (nelx_jetappt_data.i18n.confirming || 'Confirming cron setup...') + '</p></div>');
+            
+            $.post(ajaxurl, {
+                action: 'nelx_test_appointment_automation',
+                nonce: nelx_jetappt_data.nonce,
+                manual_confirm: 1
+            }, function(response) {
+                var messageClass = response.success ? 'notice-success' : 'notice-error';
+                var message = response.data.message;
                 
-                setTimeout(function() {
-                    resultContainer.fadeOut(500, function() {
-                        $(this).html('');
-                        $(this).show();
-                    });
-                }, 5000);
+                var logHtml = '';
+                if (response.data.log) {
+                    logHtml = '<pre style="background:#f5f5f5;padding:10px;border-radius:4px;overflow-x:auto;margin-top:10px;font-size:12px;line-height:1.6;">' + 
+                              response.data.log.replace(/\n/g, '<br>') + '</pre>';
+                }
+                
+                resultContainer.html('<div class="notice ' + messageClass + '"><p>' + message + '</p>' + logHtml + '</div>');
+                
+                if (response.success) {
+                    manualConfirm.hide();
+                }
+                
+                button.prop('disabled', false).html(originalText);
+                
+                // Auto-hide after 30 seconds on success
+                if (response.success) {
+                    setTimeout(function() {
+                        resultContainer.fadeOut(500, function() {
+                            $(this).html('').show();
+                        });
+                    }, 30000);
+                }
+            }).fail(function(xhr, status, error) {
+                resultContainer.html('<div class="notice notice-error"><p>' + (nelx_jetappt_data.i18n.confirm_error || 'Error confirming cron setup: ') + error + '</p></div>');
+                button.prop('disabled', false).html(originalText);
             });
         });
         

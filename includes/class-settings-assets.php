@@ -76,6 +76,8 @@ class NELXJAF_Settings_Assets {
             }
         }
         
+        wp_add_inline_style('nelx-jetappt-nelx-jetappt-settings.min', '.nelx-column-repeater-items{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}.nelx-column-repeater-item{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto auto auto;gap:5px;align-items:center}.nelx-column-repeater-item select,.nelx-column-repeater-item input{min-width:0;width:100%;max-width:100%;box-sizing:border-box}.nelx-column-repeater-item .button{min-width:34px;padding:0 8px}.nelx-column-repeater-item .nelx-remove-column{color:#b32d2e}.nelx-column-repeater-item .nelx-move-column{color:inherit}.nelx-column-repeater .description{margin-top:10px}.nelx-appointment-config-columns{grid-template-columns:1fr!important}.nelx-remove-confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}.nelx-remove-confirm-modal{width:min(440px,100%);background:#fff;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.2);padding:22px}.nelx-remove-confirm-modal h3{margin:0 0 10px;font-size:18px}.nelx-remove-confirm-modal p{margin:0 0 20px;color:#50575e}.nelx-remove-confirm-actions{display:flex;justify-content:flex-end;gap:8px}@media(max-width:782px){.nelx-column-repeater-item{grid-template-columns:1fr 1fr}.nelx-column-repeater-item .nelx-move-column,.nelx-column-repeater-item .nelx-remove-column{justify-self:start}}');
+
         $js_files = [
             'nelx-jetappt-settings.min.js',
             'nelx-custom-emails-settings.min.js'
@@ -186,6 +188,8 @@ class NELXJAF_Settings_Assets {
                 'confirm_reset' => __('Are you sure you want to reset all settings? This cannot be undone.', 'nelx-jetappt-frontend'),
                 'reset' => __('Reset to Defaults', 'nelx-jetappt-frontend'),
                 'reset_success' => __('Settings reset successfully!', 'nelx-jetappt-frontend'),
+                'confirm_remove_column' => __('Remove item?', 'nelx-jetappt-frontend'),
+                'confirm_remove_column_desc' => __('Are you sure you want to remove this column/field?', 'nelx-jetappt-frontend'),
                 
                 'test_cron' => __('Test Cron', 'nelx-jetappt-frontend'),
                 'cron_test_success' => __('Cron test completed successfully!', 'nelx-jetappt-frontend'),
@@ -199,6 +203,94 @@ class NELXJAF_Settings_Assets {
         wp_register_script('nelx-jetappt-admin-scripts', false, [], '1.0.0', true);
         wp_enqueue_script('nelx-jetappt-admin-scripts');
         wp_localize_script('nelx-jetappt-admin-scripts', 'nelx_jetappt_data', $localization_data);
+
+        wp_add_inline_script('nelx-jetappt-admin-scripts', <<<'JS'
+jQuery(function($) {
+    function refreshMoveButtons($box) {
+        $box.find('.nelx-column-repeater-item').each(function(i) {
+            $(this).find('.nelx-move-up').prop('disabled', i === 0);
+            $(this).find('.nelx-move-down').prop('disabled', i === $box.find('.nelx-column-repeater-item').length - 1);
+        });
+    }
+    function syncLabelName($item) {
+        var $select = $item.find('select').first();
+        var $label = $item.find('.nelx-column-custom-label').first();
+        if (!$select.length || !$label.length) return;
+        var key = $select.val() || '';
+        var name = $label.attr('name') || '';
+        if (!name) return;
+        name = name.replace(/\[[^\]]+\]$/, '[' + key + ']');
+        $label.attr('name', name);
+        var optionText = $select.find('option:selected').text();
+        if (!$label.val()) $label.attr('placeholder', optionText || 'Custom label (optional)');
+    }
+    $(document).on('click', '.nelx-add-column', function() {
+        var $repeater = $(this).closest('.nelx-column-repeater');
+        var template = $repeater.find('.nelx-column-template').html();
+        if (template) {
+            var $item = $(template);
+            $repeater.find('.nelx-column-repeater-items').append($item);
+            syncLabelName($item);
+        }
+        refreshMoveButtons($repeater);
+    });
+    $(document).on('change', '.nelx-column-repeater-item select', function() {
+        syncLabelName($(this).closest('.nelx-column-repeater-item'));
+    });
+    var pendingRemoval = null;
+    function openRemoveConfirm($item, $repeater) {
+        pendingRemoval = { item: $item, repeater: $repeater };
+        if ($('#nelx-remove-confirm-overlay').length) return;
+        var html = '<div id="nelx-remove-confirm-overlay" class="nelx-remove-confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="nelx-remove-confirm-title">' +
+            '<div class="nelx-remove-confirm-modal">' +
+            '<h3 id="nelx-remove-confirm-title">' + (nelx_jetappt_data.i18n.confirm_remove_column || 'Remove item?') + '</h3>' +
+            '<p>' + (nelx_jetappt_data.i18n.confirm_remove_column_desc || 'Are you sure you want to remove this column/field?') + '</p>' +
+            '<div class="nelx-remove-confirm-actions"><button type="button" class="button" id="nelx-remove-confirm-cancel">' + (nelx_jetappt_data.i18n.cancel || 'Cancel') + '</button><button type="button" class="button button-primary" id="nelx-remove-confirm-ok">' + (nelx_jetappt_data.i18n.remove || 'Remove') + '</button></div>' +
+            '</div></div>';
+        $('body').append(html);
+        $('#nelx-remove-confirm-ok').trigger('focus');
+    }
+    function closeRemoveConfirm() {
+        $('#nelx-remove-confirm-overlay').remove();
+        pendingRemoval = null;
+    }
+    $(document).on('click', '.nelx-remove-column', function() {
+        var $item = $(this).closest('.nelx-column-repeater-item');
+        openRemoveConfirm($item, $item.closest('.nelx-column-repeater'));
+    });
+    $(document).on('click', '#nelx-remove-confirm-cancel', function() { closeRemoveConfirm(); });
+    $(document).on('click', '#nelx-remove-confirm-ok', function() {
+        if (pendingRemoval && pendingRemoval.item && pendingRemoval.item.length) {
+            pendingRemoval.item.remove();
+            refreshMoveButtons(pendingRemoval.repeater);
+        }
+        closeRemoveConfirm();
+    });
+    $(document).on('click', '#nelx-remove-confirm-overlay', function(e) {
+        if (e.target === this) closeRemoveConfirm();
+    });
+    $(document).on('keydown', function(e) {
+        if (e.key === 'Escape' && $('#nelx-remove-confirm-overlay').length) closeRemoveConfirm();
+    });
+    $(document).on('click', '.nelx-move-up', function() {
+        var $item = $(this).closest('.nelx-column-repeater-item');
+        $item.prev().before($item);
+        refreshMoveButtons($item.closest('.nelx-column-repeater'));
+    });
+    $(document).on('click', '.nelx-move-down', function() {
+        var $item = $(this).closest('.nelx-column-repeater-item');
+        $item.next().after($item);
+        refreshMoveButtons($item.closest('.nelx-column-repeater'));
+    });
+    $('.nelx-column-repeater').each(function(){
+        var $repeater = $(this);
+        $repeater.find('.nelx-column-repeater-item').each(function(){ syncLabelName($(this)); });
+        refreshMoveButtons($repeater);
+    });
+});
+JS
+);
+
         
         wp_localize_script('nelx-jetappt-nelx-jetappt-settings', 'nelx_jetappt_data', $localization_data);
         wp_localize_script('nelx-jetappt-nelx-custom-emails-settings', 'nelx_jetappt_data', $localization_data);

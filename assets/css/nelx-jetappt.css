@@ -950,4 +950,4 @@ body.nelx-modal-open {
     .nelx-google-meet-settings .nelx-actions .nelx-status {
         margin-top: 8px;
     }
-}
+}.nelx-modal-status-select{width:100%;min-height:38px;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#111827;font-size:14px;font-weight:500;box-sizing:border-box}.nelx-modal-status-select:focus{outline:0;border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,130,235,.1)}.nelx-modal-status-select:disabled{opacity:.65;cursor:wait}.nelx-modal-status-readonly{display:inline-block}

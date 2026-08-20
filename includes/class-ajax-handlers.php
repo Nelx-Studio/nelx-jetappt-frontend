@@ -71,63 +71,95 @@ class NELXJAF_Ajax_Handlers {
         if (!check_ajax_referer('nelx_jetappt_nonce', 'nonce', false)) {
             wp_send_json_error(__('Security check failed.', 'nelx-jetappt-frontend'));
         }
-        
         if (!current_user_can('manage_options')) {
             wp_send_json_error(__('Permission denied.', 'nelx-jetappt-frontend'));
         }
-        
-        $current_settings = get_option($this->option_name, []);
-        
-        if (isset($_POST['data']) && is_array($_POST['data'])) {
-            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-            $post_data = wp_unslash($_POST['data']);
+
+        $post_data = isset($_POST['data']) ? wp_unslash($_POST['data']) : '';
+        $form_data = [];
+        if ($post_data !== '') {
             parse_str($post_data, $form_data);
-            
-            if (isset($form_data[$this->option_name])) {
-                $sanitized = NELXJAF_Settings_Sanitizer::sanitize_settings($form_data[$this->option_name]);
-                $current_settings = array_merge($current_settings, $sanitized);
+        }
+
+        $main_current = get_option($this->option_name, []);
+        $google_current = get_option($this->google_meet_option_name, []);
+        $email_current = get_option($this->email_branding_option_name, []);
+        $changed = false;
+
+        if (isset($form_data[$this->option_name]) && is_array($form_data[$this->option_name])) {
+            $sanitized = NELXJAF_Settings_Sanitizer::sanitize_settings($form_data[$this->option_name]);
+            $new_main = array_merge((array) $main_current, $sanitized);
+            if ($new_main !== (array) $main_current) {
+                update_option($this->option_name, $new_main);
+                $changed = true;
+            }
+            $main_current = $new_main;
+        }
+
+        if (isset($form_data[$this->google_meet_option_name]) && is_array($form_data[$this->google_meet_option_name])) {
+            $sanitized_google = NELXJAF_Settings_Sanitizer::sanitize_google_meet_settings($form_data[$this->google_meet_option_name]);
+            $new_google = array_merge((array) $google_current, $sanitized_google);
+            if ($new_google !== (array) $google_current) {
+                update_option($this->google_meet_option_name, $new_google);
+                $changed = true;
             }
         }
-        
+
+        if (isset($form_data[$this->email_branding_option_name]) && is_array($form_data[$this->email_branding_option_name])) {
+            $sanitized_email = NELXJAF_Settings_Sanitizer::sanitize_email_branding_settings($form_data[$this->email_branding_option_name]);
+            $new_email = array_merge((array) $email_current, $sanitized_email);
+            if ($new_email !== (array) $email_current) {
+                update_option($this->email_branding_option_name, $new_email);
+                $changed = true;
+            }
+        }
+
         if (isset($_POST['default_templates'])) {
-            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
             $default_templates = json_decode(wp_unslash($_POST['default_templates']), true);
             if (is_array($default_templates)) {
-                $current_settings['default_email_templates'] = [];
+                $templates = [];
                 foreach ($default_templates as $index => $template) {
-                    $current_settings['default_email_templates'][$index] = [
-                        'name' => sanitize_text_field($template['name']),
-                        'form_id' => absint($template['form_id']),
-                        'email_settings' => NELXJAF_Settings_Sanitizer::sanitize_email_settings($template['email_settings'])
+                    $templates[$index] = [
+                        'name' => sanitize_text_field($template['name'] ?? ''),
+                        'form_id' => absint($template['form_id'] ?? 0),
+                        'email_settings' => NELXJAF_Settings_Sanitizer::sanitize_email_settings($template['email_settings'] ?? []),
                     ];
+                }
+                if (($main_current['default_email_templates'] ?? []) !== $templates) {
+                    $main_current['default_email_templates'] = $templates;
+                    update_option($this->option_name, $main_current);
+                    $changed = true;
                 }
             }
         }
-        
+
         if (isset($_POST['custom_templates'])) {
-            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
             $custom_templates = json_decode(wp_unslash($_POST['custom_templates']), true);
             if (is_array($custom_templates)) {
-                $current_settings['custom_email_templates'] = [];
+                $templates = [];
                 foreach ($custom_templates as $index => $template) {
-                    $current_settings['custom_email_templates'][$index] = [
-                        'name' => sanitize_text_field($template['name']),
-                        'form_id' => absint($template['form_id']),
-                        'email_settings' => NELXJAF_Settings_Sanitizer::sanitize_email_settings($template['email_settings'])
+                    $templates[$index] = [
+                        'name' => sanitize_text_field($template['name'] ?? ''),
+                        'form_id' => absint($template['form_id'] ?? 0),
+                        'email_settings' => NELXJAF_Settings_Sanitizer::sanitize_email_settings($template['email_settings'] ?? []),
                     ];
+                }
+                if (($main_current['custom_email_templates'] ?? []) !== $templates) {
+                    $main_current['custom_email_templates'] = $templates;
+                    update_option($this->option_name, $main_current);
+                    $changed = true;
                 }
             }
         }
-        
-        $result = update_option($this->option_name, $current_settings);
-        
-        if ($result) {
-            wp_send_json_success(__('Settings saved successfully!', 'nelx-jetappt-frontend'));
-        } else {
-            wp_send_json_error(__('No changes were made or failed to save.', 'nelx-jetappt-frontend'));
-        }
+
+        // update_option() returns false when the submitted value is already identical.
+        // That is a successful save state, not an error.
+        wp_send_json_success($changed
+            ? __('Settings saved successfully!', 'nelx-jetappt-frontend')
+            : __('Settings are up to date.', 'nelx-jetappt-frontend')
+        );
     }
-    
+
     public function save_notifications_settings() {
         if (!check_ajax_referer('nelx_jetappt_nonce', '_wpnonce', false)) {
             wp_send_json_error(__('Security check failed.', 'nelx-jetappt-frontend'));
@@ -243,57 +275,223 @@ class NELXJAF_Ajax_Handlers {
             wp_send_json_error(['message' => __('Permission denied.', 'nelx-jetappt-frontend')]);
         }
         
-        $debug_log = ABSPATH . 'nelx-cron-debug.log';
-        $cron_output_log = ABSPATH . 'cron-output.log';
+        $log = [];
+        $cron_detected = false;
+        $cron_test_passed = false;
+        $manual_confirmation = isset($_POST['manual_confirm']) && $_POST['manual_confirm'] === '1';
         
-        $cron_found = false;
-        $last_run = null;
-        $log_content = '';
+        // Get the cron command
+        $php_path = $this->get_php_path_for_cron();
+        $cron_file_path = NELXJAF_PLUGIN_DIR . 'nelx-appointment-cron-handler.php';
+        $expected_command = $php_path . ' ' . $cron_file_path . ' >/dev/null 2>&1';
+        $test_command = $php_path . ' ' . $cron_file_path . ' --test';
         
-        if (file_exists($debug_log)) {
-            $cron_found = true;
-            $last_run = gmdate('Y-m-d H:i:s', filemtime($debug_log));
-            $log_content = file_get_contents($debug_log);
-            $log_lines = explode("\n", $log_content);
-            $log_content = implode("\n", array_slice($log_lines, -20));
+        // Check if shell_exec is available
+        $shell_exec_enabled = function_exists('shell_exec') && !in_array('shell_exec', explode(',', ini_get('disable_functions')));
+        
+        // 1. Attempt to detect cron in crontab (only if shell_exec is enabled)
+        if ($shell_exec_enabled) {
+            $crontab = shell_exec('crontab -l 2>/dev/null');
+            
+            if ($crontab) {
+                $pattern = preg_quote($cron_file_path, '/');
+                if (preg_match('/' . $pattern . '/', $crontab)) {
+                    $cron_detected = true;
+                    $log[] = '<span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span> ' . __('Cron job found in crontab', 'nelx-jetappt-frontend');
+                    
+                    if (strpos($crontab, $php_path) !== false) {
+                        $log[] = '<span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span> ' . __('Using correct PHP path', 'nelx-jetappt-frontend');
+                    } else {
+                        $log[] = '<span class="dashicons dashicons-warning" style="color: #f56e28;"></span> ' . __('Using different PHP path than detected', 'nelx-jetappt-frontend');
+                        preg_match('/^\s*(.*?php[^\s]*)\s/', $crontab, $matches);
+                        if (!empty($matches[1])) {
+                            $log[] = __('Detected PHP path in crontab:', 'nelx-jetappt-frontend') . ' ' . $matches[1];
+                        }
+                    }
+                } else {
+                    $log[] = '<span class="dashicons dashicons-dismiss" style="color: #dc3232;"></span> ' . __('Cron job not found in crontab', 'nelx-jetappt-frontend');
+                }
+            } else {
+                $log[] = '<span class="dashicons dashicons-warning" style="color: #f56e28;"></span> ' . __('No crontab entries found for this user', 'nelx-jetappt-frontend');
+            }
+        } else {
+            $log[] = '<span class="dashicons dashicons-warning" style="color: #f56e28;"></span> ' . __('Could not verify crontab - shell_exec disabled', 'nelx-jetappt-frontend');
+            $log[] = '<span class="dashicons dashicons-info" style="color: #00a0d2;"></span> ' . __('This is common on shared hosting. The cron may still be working.', 'nelx-jetappt-frontend');
         }
         
-        if (file_exists($cron_output_log)) {
-            $cron_found = true;
-            if (!$last_run) {
-                $last_run = gmdate('Y-m-d H:i:s', filemtime($cron_output_log));
+        // 2. Test the cron handler directly (CLI test) - only if shell_exec is enabled
+        if ($shell_exec_enabled) {
+            $test_output = shell_exec($test_command . ' 2>&1');
+            
+            if ($test_output !== null && strpos($test_output, 'Cron handler is accessible') !== false) {
+                $cron_test_passed = true;
+                $log[] = '<span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span> ' . __('Cron handler test passed (CLI)', 'nelx-jetappt-frontend');
+                $log[] = __('Test output:', 'nelx-jetappt-frontend') . ' ' . trim($test_output);
+            } else {
+                $log[] = '<span class="dashicons dashicons-dismiss" style="color: #dc3232;"></span> ' . __('Cron handler test failed (CLI)', 'nelx-jetappt-frontend');
+                if (!empty($test_output)) {
+                    $log[] = __('Error output:', 'nelx-jetappt-frontend') . ' ' . trim($test_output);
+                }
+            }
+        } else {
+            $log[] = '<span class="dashicons dashicons-warning" style="color: #f56e28;"></span> ' . __('Cannot test CLI - shell_exec disabled', 'nelx-jetappt-frontend');
+        }
+        
+        // 3. Always check if file exists (regardless of shell_exec)
+        if (file_exists($cron_file_path)) {
+            $log[] = '<span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span> ' . __('Cron handler file exists', 'nelx-jetappt-frontend');
+            $log[] = '<span class="dashicons dashicons-admin-file"></span> ' . __('File path:', 'nelx-jetappt-frontend') . ' ' . $cron_file_path;
+            
+            if (is_readable($cron_file_path)) {
+                $log[] = '<span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span> ' . __('File is readable', 'nelx-jetappt-frontend');
+            } else {
+                $log[] = '<span class="dashicons dashicons-dismiss" style="color: #dc3232;"></span> ' . __('File is not readable - check permissions', 'nelx-jetappt-frontend');
+            }
+        } else {
+            $log[] = '<span class="dashicons dashicons-dismiss" style="color: #dc3232;"></span> ' . __('Cron handler file not found at:', 'nelx-jetappt-frontend') . ' ' . $cron_file_path;
+        }
+        
+        // Determine overall status
+        $status_message = '';
+        $is_configured = false;
+        
+        if ($shell_exec_enabled) {
+            // Full verification possible
+            if ($cron_detected && $cron_test_passed) {
+                $status_message = '<span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span> ' . __('Cron is properly configured and working!', 'nelx-jetappt-frontend');
+                $is_configured = true;
+            } elseif ($cron_detected && !$cron_test_passed) {
+                $status_message = '<span class="dashicons dashicons-warning" style="color: #f56e28;"></span> ' . __('Cron job is in crontab but handler test failed', 'nelx-jetappt-frontend');
+                $is_configured = false;
+            } else {
+                $status_message = '<span class="dashicons dashicons-dismiss" style="color: #dc3232;"></span> ' . __('Cron job not detected in crontab', 'nelx-jetappt-frontend');
+                $is_configured = false;
+            }
+        } else {
+            // shell_exec disabled - can only check if file exists
+            if ($manual_confirmation) {
+                // User has manually confirmed the cron is added
+                $status_message = '<span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span> ' . __('Cron configuration confirmed manually.', 'nelx-jetappt-frontend');
+                $log[] = '<span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span> ' . __('Manual confirmation received - cron is marked as configured.', 'nelx-jetappt-frontend');
+                $is_configured = true;
+            } else {
+                // Check if we have any evidence the cron might be working
+                // Check if there are any past appointments that should have been deleted
+                $cron_likely_working = $this->check_cron_evidence();
+                
+                if ($cron_likely_working) {
+                    $status_message = '<span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span> ' . __('Cron appears to be working (evidence found in database).', 'nelx-jetappt-frontend');
+                    $log[] = '<span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span> ' . __('Past appointments have been processed, indicating cron is working.', 'nelx-jetappt-frontend');
+                    $is_configured = true;
+                } else {
+                    $status_message = '<span class="dashicons dashicons-warning" style="color: #f56e28;"></span> ' . __('Cannot verify cron setup - shell_exec disabled.', 'nelx-jetappt-frontend');
+                    $log[] = '<span class="dashicons dashicons-info" style="color: #00a0d2;"></span> ' . __('To verify, please confirm you have added the cron command to crontab.', 'nelx-jetappt-frontend');
+                    $is_configured = false;
+                }
             }
         }
         
-        if ($cron_found) {
-            wp_send_json_success([
-                'message' => __('Cron job is running!', 'nelx-jetappt-frontend'),
-                'log_details' => [
-                    'last_run' => $last_run,
-                    'log_content' => $log_content
-                ],
-                'log' => sprintf(
-                    /* translators: %s: timestamp of last cron run */
-                    __('Cron last executed at: %s', 'nelx-jetappt-frontend'),
-                    $last_run
-                )
-            ]);
-        } else {
-            wp_send_json_error([
-                'message' => __('Cron job not detected. Please add the cron command to your crontab.', 'nelx-jetappt-frontend'),
-                'log_details' => [
-                    'expected_log_file' => $debug_log,
-                    'expected_output_file' => $cron_output_log
-                ],
-                'log' => __('No cron execution detected. The cron handler has never run.', 'nelx-jetappt-frontend')
-            ]);
+        $response_data = [
+            'message' => $status_message,
+            'log' => implode("\n", $log),
+            'cron_command' => $expected_command,
+            'test_command' => $test_command,
+            'cron_file_path' => $cron_file_path,
+            'php_path' => $php_path,
+            'detected_in_crontab' => $cron_detected,
+            'test_passed' => $cron_test_passed,
+            'shell_exec_enabled' => $shell_exec_enabled,
+            'manual_confirmation' => $manual_confirmation,
+            'requires_manual_confirmation' => !$shell_exec_enabled && !$manual_confirmation
+        ];
+        
+        if (!$is_configured) {
+            // Provide setup instructions
+            $setup_instructions = sprintf(
+                __('Add this line to your crontab (run "crontab -e"): %s', 'nelx-jetappt-frontend'),
+                "\n* * * * * " . $expected_command . "\n"
+            );
+            $response_data['setup_instructions'] = $setup_instructions;
+            
+            // Add alternative instructions for shared hosting
+            if (!$shell_exec_enabled) {
+                $response_data['setup_instructions'] .= "\n\n" . __('Since shell_exec is disabled, you may need to:', 'nelx-jetappt-frontend') . "\n";
+                $response_data['setup_instructions'] .= __('1. Check crontab via your hosting control panel', 'nelx-jetappt-frontend') . "\n";
+                $response_data['setup_instructions'] .= __('2. Add the cron command shown above', 'nelx-jetappt-frontend') . "\n";
+                $response_data['setup_instructions'] .= __('3. Click "I have added the cron command" button below', 'nelx-jetappt-frontend') . "\n";
+                $response_data['setup_instructions'] .= __('4. This will mark the cron as configured', 'nelx-jetappt-frontend') . "\n";
+            }
+            
+            wp_send_json_error($response_data);
+            return;
         }
+        
+        wp_send_json_success($response_data);
+    }
+    
+    /**
+     * Check for evidence that cron is working
+     */
+    private function check_cron_evidence() {
+        global $wpdb;
+        
+        $options = get_option('nelx_jetappt_settings', []);
+        $core = NELXJAF_Core::instance();
+        $appt_table = $core->appt_table;
+        
+        // Check if auto_delete_past is enabled
+        $auto_delete_past = $options['auto_delete_past'] ?? '0';
+        if ($auto_delete_past !== '1') {
+            return false;
+        }
+        
+        // Check if there are any past appointments that should have been deleted
+        $days = $options['auto_delete_past_days'] ?? '7';
+        if ($days === 'custom') {
+            $days = $options['auto_delete_past_custom'] ?? '7';
+        }
+        $days = intval($days);
+        if ($days < 1) {
+            $days = 3;
+        }
+        
+        $cutoff_timestamp = current_time('timestamp') - ($days * DAY_IN_SECONDS);
+        
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $past_count = $wpdb->get_var(
+            $wpdb->prepare("SELECT COUNT(*) FROM {$appt_table} WHERE date < %d AND appointment_status != 'canceled'", $cutoff_timestamp)
+        );
+        
+        // If there are no past appointments, cron might be working
+        return $past_count == 0;
+    }
+    
+    private function get_php_path_for_cron() {
+        $possible_php_paths = [
+            '/usr/local/bin/php',
+            '/usr/bin/php',
+            '/usr/bin/php8',
+            '/usr/bin/php81',
+            '/usr/bin/php82',
+            '/usr/bin/php83',
+            '/opt/cpanel/ea-php82/root/usr/bin/php',
+            '/opt/cpanel/ea-php81/root/usr/bin/php',
+            '/opt/cpanel/ea-php80/root/usr/bin/php',
+        ];
+        
+        foreach ($possible_php_paths as $php_path) {
+            if (file_exists($php_path)) {
+                return $php_path;
+            }
+        }
+        
+        return 'php';
     }
     
     private function run_automation_test() {
         global $wpdb;
         $options = get_option($this->option_name);
-        $appt_table = $wpdb->prefix . ($options['appt_table'] ?? 'jet_appointments');
+        $appt_table = $wpdb->prefix . 'jet_appointments';
         
         $results = [
             'reminders' => 0,
@@ -376,7 +574,7 @@ class NELXJAF_Ajax_Handlers {
         
         global $wpdb;
         $options = get_option($this->option_name);
-        $appt_table = $wpdb->prefix . ($options['appt_table'] ?? 'jet_appointments');
+        $appt_table = $wpdb->prefix . 'jet_appointments';
         
         $cutoff_timestamp = current_time('timestamp') - ($days * DAY_IN_SECONDS);
         $cutoff_date = gmdate('Y-m-d H:i:s', $cutoff_timestamp);
@@ -408,7 +606,7 @@ class NELXJAF_Ajax_Handlers {
         
         global $wpdb;
         $options = get_option($this->option_name);
-        $appt_table = $wpdb->prefix . ($options['appt_table'] ?? 'jet_appointments');
+        $appt_table = $wpdb->prefix . 'jet_appointments';
         
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
         $result = $wpdb->query($wpdb->prepare(

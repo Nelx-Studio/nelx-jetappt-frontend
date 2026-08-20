@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nelx JetAppointments Frontend Manager
  * Description: Front-end schedule editor, provider action buttons, collision-safe reschedule, secure delete, inline modals and available slots endpoint tailored to JetAppointments schema.
- * Version: 1.0.0
+ * Version: 1.1.9
  * Author: Astariko Ambuka
  * Author URI: https://nelxstudio.com
  * License: GPLv2 or later
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 // Plugin Constants
 define('NELXJAF_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('NELXJAF_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('NELXJAF_PLUGIN_VERSION', '1.0.0');
+define('NELXJAF_PLUGIN_VERSION', '1.1.9');
 
 // Include required files
 require_once NELXJAF_PLUGIN_DIR . 'includes/class-core.php';
@@ -26,6 +26,7 @@ require_once NELXJAF_PLUGIN_DIR . 'includes/class-timezone-helper.php';
 require_once NELXJAF_PLUGIN_DIR . 'includes/class-api.php';
 require_once NELXJAF_PLUGIN_DIR . 'includes/class-settings-assets.php';
 require_once NELXJAF_PLUGIN_DIR . 'includes/class-shortcodes.php';
+require_once NELXJAF_PLUGIN_DIR . 'includes/class-appointment-listings.php';
 require_once NELXJAF_PLUGIN_DIR . 'includes/class-settings-page.php';
 require_once NELXJAF_PLUGIN_DIR . 'includes/class-settings-sanitizer.php';
 require_once NELXJAF_PLUGIN_DIR . 'includes/class-settings-registry.php';

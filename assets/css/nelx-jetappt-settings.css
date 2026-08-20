@@ -984,6 +984,15 @@ input:checked + .nelx-appt-slider:after {
   box-shadow: none;
 }
 
+/* Spin animation for dashicons */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.dashicons.spin {
+    animation: spin 1s linear infinite;
+}
+
 /* ============================================ */
 /* NOTIFICATION BAR                             */
 /* ============================================ */

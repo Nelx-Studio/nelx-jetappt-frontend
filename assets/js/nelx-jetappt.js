@@ -1133,8 +1133,38 @@
             });
         }
 
-        /* Reschedule modal */
-        $('.nelx-actions-inline, .nelx-client-actions-inline').on('click', '.nelx-edit', function() {
+        /* Public bridge for native appointment listings. Reuses the same legacy state logic. */
+    window.NELXJAF_refreshActionButtons = function($scope) {
+        var $wraps = ($scope && $scope.jquery) ? $scope : $($scope || '.nelx-actions-inline, .nelx-client-actions-inline');
+        if (!$wraps.length) return;
+        var appointmentIds = [];
+        $wraps.each(function() {
+            var $wrap = $(this);
+            var id = detectAppointmentId($wrap);
+            if (!id) return;
+            $wrap.data('appointment-id', id);
+            if (appointmentIds.indexOf(id) === -1) appointmentIds.push(id);
+        });
+        if (!appointmentIds.length) return;
+        setButtonsLoadingState($wraps, true);
+        fetchBatchAppointments(appointmentIds).done(function(data) {
+            $wraps.each(function() {
+                var $wrap = $(this), id = $wrap.data('appointment-id'), state = data[id];
+                if (!state) return;
+                var status = state.status || 'pending';
+                var isPast = !!state.is_past;
+                var allowed = !!state.rescheduling_allowed;
+                $wrap.data('slot', state.slot).data('rescheduling-allowed', allowed).data('status', status).data('is-past', isPast ? '1' : '0');
+                $wrap.attr('data-status', status).attr('data-is-past', isPast ? '1' : '0');
+                updateButtonStates($wrap, status, isPast, allowed);
+            });
+        }).always(function() {
+            setButtonsLoadingState($wraps, false);
+        });
+    };
+
+    /* Reschedule modal */
+        $(document).on('click', '.nelx-actions-inline .nelx-edit, .nelx-client-actions-inline .nelx-edit', function() {
             if ($(this).is(':disabled')) return;
         
             var $btn = $(this);
@@ -1419,42 +1449,173 @@
         });
 
         /* Appointment info modal */
-        $('.nelx-actions-inline, .nelx-client-actions-inline').on('click', '.nelx-info', function() {
+        function nelxEscapeHtml(value) {
+            return $('<div>').text(value == null ? '' : String(value)).html();
+        }
+
+        function nelxHumanizeValue(value) {
+            if (value == null || value === '') return '—';
+            var text = String(value).replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+            return text ? text.replace(/\b\w/g, function(letter) { return letter.toUpperCase(); }) : '—';
+        }
+
+        function nelxPaymentStatusOptions() {
+            return {
+                pending: 'Pending payment',
+                processing: 'Processing',
+                'on-hold': 'On hold',
+                completed: 'Completed',
+                cancelled: 'Cancelled',
+                refunded: 'Refunded',
+                failed: 'Failed'
+            };
+        }
+
+        function nelxNormalizePaymentStatus(value) {
+            value = String(value || '').toLowerCase();
+            var aliases = {
+                pending_payment: 'pending',
+                'pending-payment': 'pending',
+                on_hold: 'on-hold',
+                canceled: 'cancelled'
+            };
+            return aliases[value] || value;
+        }
+
+        function nelxRenderPaymentStatus(data, isProvider, id) {
+            var status = nelxNormalizePaymentStatus(data.payment_status || (data.appt && data.appt.status) || 'pending');
+            var labels = nelxPaymentStatusOptions();
+            var label = data.payment_status_label || labels[status] || nelxHumanizeValue(status);
+
+            if (!isProvider) {
+                return '<span class="nelx-modal-status-readonly">' + nelxEscapeHtml(label) + '</span>';
+            }
+
+            var html = '<select class="nelx-modal-status-select" data-appointment-id="' + nelxEscapeHtml(id) + '" data-previous="' + nelxEscapeHtml(status) + '" aria-label="Appointment status">';
+            if (!labels[status]) {
+                html += '<option value="' + nelxEscapeHtml(status) + '" selected>' + nelxEscapeHtml(label) + '</option>';
+            }
+            $.each(labels, function(value, text) {
+                html += '<option value="' + value + '"' + (value === status ? ' selected' : '') + '>' + nelxEscapeHtml(text) + '</option>';
+            });
+            html += '</select>';
+            return html;
+        }
+
+        function nelxModalFieldValue(field, data, providerName, meetHtml) {
+            var appt = data.appt || {};
+            var meta = data.meta || {};
+            var display = data.display || {};
+            var clientInfo = data.client_info || {};
+            switch (field) {
+                case 'id': return appt.ID || appt.id || '—';
+                case 'start': return display.start || '—';
+                case 'end': return display.end || '—';
+                case 'slot': return display.start ? String(display.start).split(/\s+/).slice(-1)[0] : '—';
+                case 'slot_end': return display.end ? String(display.end).split(/\s+/).slice(-1)[0] : '—';
+                case 'appointment_date': return (data.display && data.display.start) ? String(data.display.start).replace(/\s+[^\s]+$/, '') : '—';
+                case 'timezone': return display.timezone || '—';
+                case 'date': return display.start ? String(display.start).replace(/\s+[^\s]+$/, '') : '—';
+                case 'time':
+                    if (display.start && display.end) return String(display.start).split(/\s+/).slice(-1)[0] + '–' + String(display.end).split(/\s+/).slice(-1)[0];
+                    return clientInfo.local_time || '—';
+                case 'service': return data.service_title || '—';
+                case 'client': return appt.user_name || '—';
+                case 'client_email': return appt.user_email || '—';
+                case 'client_phone': return appt.client_phone || meta.client_phone || '—';
+                case 'provider': return providerName || '—';
+                case 'google_meet': return meetHtml;
+                case 'client_local_date': return clientInfo.local_date || '—';
+                case 'client_local_time': return clientInfo.local_time || '—';
+                case 'client_local_timezone': return clientInfo.timezone || '—';
+                case 'appointment_status': return data.appointment_status_label || nelxHumanizeValue(data.appointment_status || appt.appointment_status);
+                case 'staff': return data.staff_name || nelxHumanizeValue(appt.staff_id || '');
+                case 'notes': return meta._notes || meta.notes || appt.notes || '—';
+                default:
+                    if (Object.prototype.hasOwnProperty.call(appt, field)) {
+                        var raw = appt[field];
+                        if (field === 'status') return data.payment_status_label || nelxHumanizeValue(raw);
+                        if (field === 'service') return data.service_title || nelxHumanizeValue(raw);
+                        if (field === 'provider') return providerName || '—';
+                        if (field === 'google_meet_url') return raw || '—';
+                        return nelxHumanizeValue(raw);
+                    }
+                    return '—';
+            }
+        }
+
+        function nelxRenderInfoField(field, data, isProvider, providerName, meetHtml, id, customLabels) {
+            var labels = {
+                id: 'ID', start: 'Start', end: 'End', date: 'Date', appointment_date: 'Appointment Date', time: 'Time',
+                slot: 'Slot', slot_end: 'Slot End', timezone: 'Timezone', service: 'Service', client: 'Client', staff: 'Staff',
+                client_email: 'Client Email', client_phone: 'Client Phone', provider: 'Provider', google_meet: 'Google Meet',
+                status: 'Payment Status', appointment_status: 'Appointment Status',
+                client_local_date: 'Client Local Date', client_local_time: 'Client Local Time', client_local_timezone: 'Client Local Timezone', notes: 'Notes'
+            };
+            customLabels = customLabels || {};
+            var customLabel = customLabels[field];
+            // Ignore stale/invalid labels such as the literal string "undefined".
+            if (typeof customLabel !== 'string' || !customLabel.trim() || customLabel.trim().toLowerCase() === 'undefined' || customLabel.trim().toLowerCase() === 'null') {
+                customLabel = '';
+            }
+            var label = customLabel || labels[field] || nelxHumanizeValue(field);
+            var value;
+            if (field === 'status') {
+                value = nelxRenderPaymentStatus(data, isProvider, id);
+            } else {
+                value = nelxModalFieldValue(field, data, providerName, meetHtml);
+                if (field !== 'google_meet') value = nelxEscapeHtml(value);
+            }
+            if (field === 'notes') {
+                return '<div class="nelx-full-width" style="margin-top: 15px;"><label>' + nelxEscapeHtml(label) + '</label><p>' + value + '</p></div>';
+            }
+            return '<div><label>' + nelxEscapeHtml(label) + '</label><span>' + value + '</span></div>';
+        }
+
+        $(document).on('change', '.nelx-modal-status-select', function() {
+            var $select = $(this);
+            var id = parseInt($select.data('appointment-id'), 10);
+            var newStatus = nelxNormalizePaymentStatus($select.val());
+            if (!id || !newStatus) return;
+            if ($select.data('saving')) return;
+
+            var previous = $select.data('previous') || '';
+            $select.data('saving', true).prop('disabled', true);
+            $.ajax({
+                url: NELXJAF.root + 'appointments/' + id + '/payment-status',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ status: newStatus }),
+                beforeSend: function(xhr) { xhr.setRequestHeader('X-WP-Nonce', NELXJAF.nonce); }
+            }).done(function(response) {
+                $select.data('previous', response.status || newStatus);
+                showAlert(response.status_label ? 'Status updated to ' + response.status_label : 'Status updated', 'ok');
+            }).fail(function(xhr) {
+                if (previous) $select.val(previous);
+                var message = xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : 'Failed to update appointment status';
+                showAlert(message, 'error');
+            }).always(function() {
+                $select.data('saving', false).prop('disabled', false);
+            });
+        });
+
+        $(document).on('click', '.nelx-actions-inline .nelx-info, .nelx-client-actions-inline .nelx-info', function() {
             if ($(this).is(':disabled')) return;
             
             var $btn = $(this);
             var $wrap = $btn.closest('.nelx-actions-inline, .nelx-client-actions-inline');
             var id = detectAppointmentId($wrap);
             var isProvider = $wrap.closest('.nelx-actions-inline').length > 0;
+            var modalView = isProvider ? 'staff' : 'client';
+            var modalFields = (NELXJAF.appointment_info_modal && NELXJAF.appointment_info_modal[modalView]) || (isProvider ? ['start','end','timezone','service','client','client_email','client_phone','google_meet','appointment_status','client_local_date','client_local_time','client_local_timezone','notes'] : ['date','time','timezone','service','provider','google_meet','appointment_status','notes']);
+            var modalLabels = (NELXJAF.appointment_info_modal_labels && NELXJAF.appointment_info_modal_labels[modalView]) || {};
             
             var $m = modal('<div class="nelx-modal-head"><h3>Appointment Information</h3><button class="nelx-modal-close">' + getCloseIconSVG() + '</button></div><div class="nelx-modal-body"><div class="nelx-info-grid"><div><label><div class="nelx-skeleton-line" style="height: 20px; width: 80px;"></div></label><div class="nelx-skeleton-line" style="height: 30px;"></div></div><div><label><div class="nelx-skeleton-line" style="height: 20px; width: 80px;"></div></label><div class="nelx-skeleton-line" style="height: 30px;"></div></div></div></div><div class="nelx-modal-foot"><button class="nelx-btn" data-close="1">Close</button></div>', $btn);
             
-            // Apply corner rounding
-            $m.find('.nelx-modal-card').css({
-                'border-radius': '12px',
-                'overflow': 'hidden'
-            });
-            $m.find('.nelx-modal-backdrop').css({
-                'border-radius': '12px'
-            });
+            $m.find('.nelx-modal-card').css({'border-radius': '12px','overflow': 'hidden'});
+            $m.find('.nelx-modal-backdrop').css({'border-radius': '12px'});
             
             fetchAppointmentInfo(id).done(function(data) {
-                // Use the pre-formatted display times from the API
-                var displayStart = data.display ? data.display.start : '';
-                var displayEnd = data.display ? data.display.end : '';
-                var displayTimezone = data.display ? data.display.timezone : '';
-                
-                // Get client timezone data from meta
-                var clientTimezone = '';
-                var clientLocalDate = '';
-                var clientLocalTime = '';
-                
-                if (data.client_info) {
-                    clientTimezone = data.client_info.timezone || '';
-                    clientLocalDate = data.client_info.local_date || '';
-                    clientLocalTime = data.client_info.local_time || '';
-                }
-                
                 var providerName = 'Unknown';
                 $.ajax({
                     url: NELXJAF.root + 'get-provider-name',
@@ -1469,110 +1630,69 @@
                     providerName = 'Unknown';
                 });
                 
-                var googleMeetLink = data.meta.google_meet_link || '';
+                var googleMeetLink = data.meta && data.meta.google_meet_link ? data.meta.google_meet_link : '';
                 var appointmentStatus = data.appointment_status || 'pending';
                 var isCanceled = appointmentStatus === 'canceled';
-                
                 var meetHtml = '';
                 if (googleMeetLink) {
                     if (isCanceled) {
                         meetHtml = '<a href="#" class="nelx-disabled-meet-link" style="opacity: 0.5; cursor: not-allowed; pointer-events: none; text-decoration: none; color: inherit;">Join Meeting</a>';
                     } else {
-                        meetHtml = '<a href="' + googleMeetLink + '" target="_blank" class="nelx-meet-link">Join Meeting</a>';
+                        meetHtml = '<a href="' + nelxEscapeHtml(googleMeetLink) + '" target="_blank" rel="noopener" class="nelx-meet-link">Join Meeting</a>';
                     }
                 } else {
                     meetHtml = 'Google Meet not set';
                 }
-                
-                var statusDisplay = appointmentStatus.charAt(0).toUpperCase() + appointmentStatus.slice(1);
-                
-                var infoHtml = '<div class="nelx-info-grid">';
-                
-                if (isProvider) {
-                    // PROVIDER VIEW - Use pre-formatted display times
-                    infoHtml += '<div><label>Start</label><span>' + displayStart + '</span></div>';
-                    infoHtml += '<div><label>End</label><span>' + displayEnd + '</span></div>';
-                    infoHtml += '<div><label>Timezone</label><span>' + displayTimezone + '</span></div>';
-                    infoHtml += '<div><label>Service</label><span>' + data.service_title + '</span></div>';
-                    infoHtml += '<div><label>Client</label><span>' + (data.appt.user_name || '-') + '</span></div>';
-                    infoHtml += '<div><label>Client Email</label><span>' + (data.appt.user_email || '-') + '</span></div>';
-                    infoHtml += '<div><label>Client Phone</label><span>' + (data.meta.client_phone || '-') + '</span></div>';
-                    infoHtml += '<div><label>Google Meet</label><span>' + meetHtml + '</span></div>';
-                    infoHtml += '<div><label>Appointment Status</label><span>' + statusDisplay + '</span></div>';
-                    infoHtml += '</div>';
-                    
-                    // Client Local Time section
-                    if (clientTimezone && clientLocalDate && clientLocalTime) {
-                        infoHtml += '<div class="nelx-full-width" style="margin-top: 15px;"><hr><h4 style="font-size: 16px; font-weight: bold; margin: 15px 0 10px 0;">Client Local Time</h4></div>';
-                        infoHtml += '<div class="nelx-info-grid">';
-                        infoHtml += '<div><label>Date</label><span>' + clientLocalDate + '</span></div>';
-                        infoHtml += '<div><label>Time</label><span>' + clientLocalTime + '</span></div>';
-                        infoHtml += '<div><label>Timezone</label><span>' + clientTimezone + '</span></div>';
-                        infoHtml += '</div>';
-                    }
-                } else {
-                    // CLIENT VIEW - Use pre-formatted display times
-                    if (clientTimezone && clientLocalDate && clientLocalTime) {
-                        infoHtml += '<div><label>Date</label><span>' + clientLocalDate + '</span></div>';
-                        infoHtml += '<div><label>Time</label><span>' + clientLocalTime + '</span></div>';
-                        infoHtml += '<div><label>Timezone</label><span>' + clientTimezone + '</span></div>';
+
+                var infoHtml = '';
+                var regularFields = [];
+                var localFields = [];
+                var hasLocalSection = false;
+                $.each(modalFields, function(_, field) {
+                    if ($.inArray(field, ['client_local_date', 'client_local_time', 'client_local_timezone']) !== -1) {
+                        localFields.push(field);
                     } else {
-                        // Fallback to display times from API
-                        infoHtml += '<div><label>Start</label><span>' + displayStart + '</span></div>';
-                        infoHtml += '<div><label>End</label><span>' + displayEnd + '</span></div>';
-                        infoHtml += '<div><label>Timezone</label><span>' + displayTimezone + '</span></div>';
+                        regularFields.push(field);
                     }
-                    
-                    infoHtml += '<div><label>Service</label><span>' + data.service_title + '</span></div>';
-                    infoHtml += '<div><label>Provider</label><span>' + providerName + '</span></div>';
-                    infoHtml += '<div><label>Google Meet</label><span>' + meetHtml + '</span></div>';
-                    infoHtml += '<div><label>Appointment Status</label><span>' + statusDisplay + '</span></div>';
+                });
+
+                infoHtml += '<div class="nelx-info-grid">';
+                $.each(regularFields, function(_, field) {
+                    if ($.inArray(field, ['notes']) !== -1) return;
+                    infoHtml += nelxRenderInfoField(field, data, isProvider, providerName, meetHtml, id, modalLabels);
+                });
+                infoHtml += '</div>';
+
+                if (localFields.length) {
+                    hasLocalSection = true;
+                    infoHtml += '<div class="nelx-full-width" style="margin-top: 15px;"><hr><h4 style="font-size: 16px; font-weight: bold; margin: 15px 0 10px 0;">Client Local Time</h4></div>';
+                    infoHtml += '<div class="nelx-info-grid">';
+                    $.each(localFields, function(_, field) {
+                        infoHtml += nelxRenderInfoField(field, data, isProvider, providerName, meetHtml, id, modalLabels);
+                    });
                     infoHtml += '</div>';
                 }
-                
-                // Notes section (full width)
-                if (data.meta._notes) {
-                    infoHtml += '<div class="nelx-full-width" style="margin-top: 15px;"><label>Notes</label><p>' + data.meta._notes + '</p></div>';
-                }
+
+                $.each(regularFields, function(_, field) {
+                    if (field === 'notes') infoHtml += nelxRenderInfoField(field, data, isProvider, providerName, meetHtml, id, modalLabels);
+                });
                 
                 $m.find('.nelx-modal-body').html(infoHtml);
+                $m.find('.nelx-modal-card').css({'border-radius': '12px','overflow': 'hidden'});
+                $m.find('.nelx-modal-backdrop').css({'border-radius': '12px'});
                 
-                // Re-apply corner rounding
-                $m.find('.nelx-modal-card').css({
-                    'border-radius': '12px',
-                    'overflow': 'hidden'
-                });
-                $m.find('.nelx-modal-backdrop').css({
-                    'border-radius': '12px'
-                });
-                
-                // Add style tag if not exists
                 if ($('#nelx-modal-corner-style').length === 0) {
-                    $('head').append('<style id="nelx-modal-corner-style">' +
-                        '.nelx-modal-card, .nelx-modal .nelx-modal-card {' +
-                        '  border-radius: 12px !important;' +
-                        '  overflow: hidden !important;' +
-                        '}' +
-                        '.nelx-modal-backdrop, .nelx-modal .nelx-modal-backdrop {' +
-                        '  border-radius: 12px !important;' +
-                        '}' +
-                        '</style>');
+                    $('head').append('<style id="nelx-modal-corner-style">.nelx-modal-card,.nelx-modal .nelx-modal-card{border-radius:12px!important;overflow:hidden!important}.nelx-modal-backdrop,.nelx-modal .nelx-modal-backdrop{border-radius:12px!important}</style>');
                 }
-                
             }).fail(function(xhr) { 
                 console.error('Failed to fetch appointment info:', xhr.responseText);
                 $m.find('.nelx-modal-body').html('<div class="nelx-error">Error loading appointment information</div>');
-                $m.find('.nelx-modal-card').css({
-                    'border-radius': '12px',
-                    'overflow': 'hidden'
-                });
-                $m.find('.nelx-modal-backdrop').css({
-                    'border-radius': '12px'
-                });
+                $m.find('.nelx-modal-card').css({'border-radius': '12px','overflow': 'hidden'});
+                $m.find('.nelx-modal-backdrop').css({'border-radius': '12px'});
             });
         });
 
-        $('.nelx-actions-inline').on('click', '.nelx-confirm, .nelx-reject', function() {
+        $(document).on('click', '.nelx-actions-inline .nelx-confirm, .nelx-actions-inline .nelx-reject', function() {
             if ($(this).is(':disabled')) return;
         
             var $btn = $(this);
@@ -1621,7 +1741,7 @@
             }
         });
         
-        $('.nelx-client-actions-inline').on('click', '.nelx-reject:not([href])', function() {
+        $(document).on('click', '.nelx-client-actions-inline .nelx-reject:not([href])', function() {
             if ($(this).is(':disabled')) return;
         
             var $btn = $(this);

@@ -37,14 +37,12 @@ class NELXJAF_Core {
     
     private function load_settings() {
         $settings = get_option('nelx_jetappt_settings', [
-            'appt_table' => 'jet_appointments',
-            'appt_meta_table' => 'jet_appointments_meta',
             'provider_meta_table' => 'staff_list_for_appoi_meta',
             'provider_column' => 'staff_id',
         ]);
         
-        $this->appt_table = $this->wpdb->prefix . ltrim($settings['appt_table'] ?? 'jet_appointments', $this->wpdb->prefix);
-        $this->appt_meta_table = $this->wpdb->prefix . ltrim($settings['appt_meta_table'] ?? 'jet_appointments_meta', $this->wpdb->prefix);
+        $this->appt_table = $this->wpdb->prefix . 'jet_appointments';
+        $this->appt_meta_table = $this->wpdb->prefix . 'jet_appointments_meta';
         $this->staff_meta_table = $this->wpdb->prefix . ltrim($settings['provider_meta_table'] ?? 'staff_list_for_appoi_meta', $this->wpdb->prefix);
         $this->provider_column = $settings['provider_column'] ?? 'staff_id';
     }
@@ -84,6 +82,10 @@ class NELXJAF_Core {
         
         if (class_exists('NELXJAF_Shortcodes')) {
             NELXJAF_Shortcodes::instance($this);
+        }
+
+        if (class_exists('NELXJAF_Appointment_Listings')) {
+            NELXJAF_Appointment_Listings::instance($this);
         }
         
         if (class_exists('NELXJAF_Modal_Manager')) {
@@ -134,6 +136,10 @@ class NELXJAF_Core {
             add_shortcode('nelx_schedule_editor', [$shortcodes, 'schedule_editor']);
             add_shortcode('nelx_provider_action_buttons', [$shortcodes, 'provider_actions']);
             add_shortcode('nelx_client_action_buttons', [$shortcodes, 'client_actions']);
+            if (class_exists('NELXJAF_Appointment_Listings')) {
+                $listings = NELXJAF_Appointment_Listings::instance($this);
+                $listings->register_shortcodes();
+            }
         }
     }
     
@@ -210,6 +216,7 @@ class NELXJAF_Core {
         }
         
         $today = current_time('Y-m-d');
+        $listing_manager = class_exists('NELXJAF_Appointment_Listings') ? NELXJAF_Appointment_Listings::instance($this) : null;
         wp_localize_script('nelx-jetappt-frontend', 'NELXJAF', [
             'root' => esc_url_raw(rest_url('nelx-jaf/v1/')),
             'nonce' => wp_create_nonce('wp_rest'),
@@ -219,6 +226,14 @@ class NELXJAF_Core {
             'provider_schedule' => $provider_schedule,
             'days_off' => $formatted_days_off,
             'global_working_hours' => $global_working_hours,
+            'appointment_info_modal' => [
+                'staff' => $listing_manager ? $listing_manager->get_modal_fields('staff') : ['start', 'end', 'timezone', 'service', 'client', 'client_email', 'client_phone', 'google_meet', 'appointment_status', 'client_local_date', 'client_local_time', 'client_local_timezone', 'notes'],
+                'client' => $listing_manager ? $listing_manager->get_modal_fields('client') : ['date', 'time', 'timezone', 'service', 'provider', 'google_meet', 'appointment_status', 'notes'],
+            ],
+            'appointment_info_modal_labels' => [
+                'staff' => $listing_manager ? $listing_manager->get_modal_labels('staff') : [],
+                'client' => $listing_manager ? $listing_manager->get_modal_labels('client') : [],
+            ],
             'i18n' => [
                 'saved' => __('Changes have been saved successfully', 'nelx-jetappt-frontend'),
                 'deleted' => __('Deleted', 'nelx-jetappt-frontend'),

@@ -194,6 +194,11 @@ class NELXJAF_API {
             'callback' => [$this, 'update_appointment_status'],
             'permission_callback' => [$this, 'require_login'],
         ]);
+        register_rest_route($this->namespace, '/appointments/(?P<id>\d+)/payment-status', [
+            'methods' => 'POST',
+            'callback' => [$this, 'update_payment_status'],
+            'permission_callback' => [$this, 'require_login'],
+        ]);
         
         register_rest_route($this->namespace, '/appointments/(?P<id>\d+)/cancel', [
             'methods' => 'POST',
@@ -617,6 +622,10 @@ class NELXJAF_API {
         foreach ($meta as $m) {
             $out_meta[$m['meta_key']] = $m['meta_value'];
         }
+        // Client phone is a native appointment column, not appointment meta.
+        if (isset($appt['client_phone'])) {
+            $out_meta['client_phone'] = $appt['client_phone'];
+        }
         
         $google_meet_url = $appt['google_meet_url'] ?? '';
         if (empty($google_meet_url) && isset($out_meta['google_meet_url'])) {
@@ -624,6 +633,7 @@ class NELXJAF_API {
         }
         
         $service_title = get_the_title($appt['service'] ?? 0);
+        $service_title = $service_title ? html_entity_decode(wp_strip_all_tags($service_title), ENT_QUOTES, get_bloginfo('charset') ?: 'UTF-8') : '';
         if (!$service_title) {
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
             $service_title = $this->core->wpdb->get_var(
@@ -667,7 +677,7 @@ class NELXJAF_API {
         }
         
         // Check cache - 1 hour
-        $cache_key = 'nelx_appointment_info_' . $id;
+        $cache_key = 'nelx_appointment_info_v2_' . get_current_user_id() . '_' . $id;
         $cached = wp_cache_get($cache_key, 'nelx_appointments');
         
         if ($cached !== false) {
@@ -707,6 +717,10 @@ class NELXJAF_API {
         foreach ($meta as $m) {
             $out_meta[$m['meta_key']] = $m['meta_value'];
         }
+        // Client phone is stored on the native appointment row.
+        if (isset($appt['client_phone'])) {
+            $out_meta['client_phone'] = $appt['client_phone'];
+        }
         
         $google_meet_url = $appt['google_meet_url'] ?? '';
         if (empty($google_meet_url) && isset($out_meta['google_meet_url'])) {
@@ -714,6 +728,7 @@ class NELXJAF_API {
         }
         
         $service_title = get_the_title($appt['service'] ?? 0);
+        $service_title = $service_title ? html_entity_decode(wp_strip_all_tags($service_title), ENT_QUOTES, get_bloginfo('charset') ?: 'UTF-8') : '';
         if (!$service_title) {
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
             $service_title = $this->core->wpdb->get_var(
@@ -727,56 +742,70 @@ class NELXJAF_API {
         $timezone_helper = NELXJAF_Timezone_Helper::instance();
         $provider_timezone = $timezone_helper->get_provider_timezone();
         
-        // Get client timezone data from meta
-        $client_timezone = $timezone_helper->get_client_timezone($id);
-        $client_local_time = $timezone_helper->get_client_local_time($id);
-        $client_local_date = $timezone_helper->get_client_local_date($id);
+        // Get client timezone data directly from appointment meta. Support both
+        // the native/user-facing meta labels and the lowercase keys used by the helper.
+        $client_timezone = $out_meta['User Timezone'] ?? $out_meta['user_timezone'] ?? '';
+        $client_local_time = $out_meta['User Local Time'] ?? $out_meta['user_local_time'] ?? '';
+        $client_local_date = $out_meta['User Local Date'] ?? $out_meta['user_local_date'] ?? '';
+        if ($client_timezone && !$timezone_helper->is_valid_timezone($client_timezone)) {
+            $client_timezone = '';
+        }
         
-        // Format display times based on who's viewing
+        // Appointment timestamps are provider-local values. For clients, use the
+        // saved local date/time/timezone as a complete set; if any part is missing,
+        // fall back to the provider-local values and the WordPress timezone.
+        $provider_local_date = gmdate('F j, Y', (int) $appt['slot']);
+        $provider_local_start = gmdate('H:i', (int) $appt['slot']);
+        $provider_local_end = gmdate('H:i', (int) $appt['slot_end']);
+        $provider_local_time = $provider_local_start . '–' . $provider_local_end;
+
         $display_start = '';
         $display_end = '';
         $display_timezone = '';
         
         if ($is_provider || $is_admin) {
-            // Provider/Admin view - show provider local time
-            // FIX: Use gmdate directly since timestamps are provider-local, not UTC
-            $display_start = gmdate('F j, Y H:i', $appt['slot']);
-            $display_end = gmdate('F j, Y H:i', $appt['slot_end']);
+            $display_start = $provider_local_date . ' ' . $provider_local_start;
+            $display_end = $provider_local_date . ' ' . $provider_local_end;
             $display_timezone = $provider_timezone;
         } else {
-            // Client view - show client local time if available
             if (!empty($client_timezone) && !empty($client_local_date) && !empty($client_local_time)) {
-                $client_times = explode('-', $client_local_time);
-                $client_start_time = $client_times[0] ?? '';
-                $client_end_time = $client_times[1] ?? '';
-                
-                $display_start = $client_local_date . ' ' . $client_start_time;
-                $display_end = $client_local_date . ' ' . $client_end_time;
-                $display_timezone = $client_timezone;
-            } else if (!empty($client_timezone)) {
-                // Convert provider-local to client timezone
-                // First get provider date and time using gmdate (since timestamps are provider-local)
-                $provider_date = gmdate('F j, Y', $appt['slot']);
-                $provider_start = gmdate('H:i', $appt['slot']);
-                $provider_end = gmdate('H:i', $appt['slot_end']);
-                
-                // Then convert to client timezone
-                $display_start = $timezone_helper->provider_local_to_client($provider_date, $provider_start, $client_timezone, 'F j, Y H:i');
-                $display_end = $timezone_helper->provider_local_to_client($provider_date, $provider_end, $client_timezone, 'F j, Y H:i');
+                $client_times = preg_split('/\s*[-–]\s*/u', trim((string) $client_local_time));
+                $client_start_time = trim($client_times[0] ?? '');
+                $client_end_time = trim($client_times[1] ?? '');
+                $display_start = trim($client_local_date . ' ' . $client_start_time);
+                $display_end = trim($client_local_date . ' ' . $client_end_time);
                 $display_timezone = $client_timezone;
             } else {
-                // Fallback to provider timezone using gmdate
-                $display_start = gmdate('F j, Y H:i', $appt['slot']);
-                $display_end = gmdate('F j, Y H:i', $appt['slot_end']);
+                $client_timezone = $provider_timezone;
+                $client_local_date = $provider_local_date;
+                $client_local_time = $provider_local_time;
+                $display_start = $provider_local_date . ' ' . $provider_local_start;
+                $display_end = $provider_local_date . ' ' . $provider_local_end;
                 $display_timezone = $provider_timezone;
             }
         }
         
+        $staff_name = '—';
+        if (!empty($appt['staff_id'])) {
+            $staff_id = absint($appt['staff_id']);
+            $first = trim((string) get_user_meta($staff_id, 'first_name', true));
+            $last = trim((string) get_user_meta($staff_id, 'last_name', true));
+            $staff_name = trim($first . ' ' . $last);
+            if ($staff_name === '') {
+                $staff_user = get_userdata($staff_id);
+                $staff_name = $staff_user ? ($staff_user->display_name ?: $staff_user->user_login) : '—';
+            }
+        }
+
         $response_data = [
             'appt' => $appt,
+            'staff_name' => $staff_name,
             'meta' => array_merge($out_meta, ['google_meet_link' => $google_meet_url]),
             'service_title' => $service_title,
             'appointment_status' => $appt['appointment_status'] ?? 'pending',
+            'appointment_status_label' => $this->humanize_appointment_value($appt['appointment_status'] ?? 'pending'),
+            'payment_status' => $this->normalize_payment_status($appt['status'] ?? ''),
+            'payment_status_label' => $this->humanize_payment_status($appt['status'] ?? ''),
             'is_canceled' => ($appt['appointment_status'] ?? 'pending') === 'canceled',
             'display' => [
                 'start' => $display_start,
@@ -1009,6 +1038,93 @@ class NELXJAF_API {
         return new WP_REST_Response(['ok' => (bool)$deleted], 200);
     }
     
+    private function normalize_payment_status($status) {
+        $status = sanitize_key((string) $status);
+        $aliases = [
+            'pending_payment' => 'pending',
+            'pending-payment' => 'pending',
+            'on_hold' => 'on-hold',
+            'cancelled' => 'cancelled',
+            'canceled' => 'cancelled',
+        ];
+        return $aliases[$status] ?? $status;
+    }
+
+    private function humanize_payment_status($status) {
+        $status = $this->normalize_payment_status($status);
+        $labels = [
+            'pending' => __('Pending payment', 'nelx-jetappt-frontend'),
+            'processing' => __('Processing', 'nelx-jetappt-frontend'),
+            'on-hold' => __('On hold', 'nelx-jetappt-frontend'),
+            'completed' => __('Completed', 'nelx-jetappt-frontend'),
+            'cancelled' => __('Cancelled', 'nelx-jetappt-frontend'),
+            'refunded' => __('Refunded', 'nelx-jetappt-frontend'),
+            'failed' => __('Failed', 'nelx-jetappt-frontend'),
+        ];
+        return $labels[$status] ?? $this->humanize_appointment_value($status ?: 'pending');
+    }
+
+    private function humanize_appointment_value($value) {
+        $value = (string) $value;
+        if ($value === '') return '—';
+        $special = [
+            'pending_confirmation' => 'Pending Confirmation',
+            'pending_approval' => 'Pending Approval',
+            'accepted' => 'Accepted',
+            'rejected' => 'Rejected',
+            'canceled' => 'Canceled',
+            'cancelled' => 'Cancelled',
+        ];
+        $key = strtolower($value);
+        if (isset($special[$key])) return __($special[$key], 'nelx-jetappt-frontend');
+        return ucwords(str_replace(['_', '-'], ' ', $value));
+    }
+
+    public function update_payment_status($request) {
+        $id = absint($request['id']);
+        $params = $request->get_json_params();
+        $status = $this->normalize_payment_status($params['status'] ?? '');
+        $allowed = ['pending', 'processing', 'on-hold', 'completed', 'cancelled', 'refunded', 'failed'];
+
+        if (!$id || !in_array($status, $allowed, true)) {
+            return new WP_REST_Response(['error' => 'bad_request'], 400);
+        }
+
+        $appt = $this->core->wpdb->get_row(
+            $this->core->wpdb->prepare("SELECT ID, provider, user_id, status FROM {$this->core->appt_table} WHERE ID = %d LIMIT 1", $id),
+            ARRAY_A
+        );
+        if (!$appt) return new WP_REST_Response(['error' => 'not_found'], 404);
+
+        $uid = get_current_user_id();
+        $provider_post = $this->core->get_provider_post_id_for_user($uid);
+        $is_provider = ((string) $appt['provider'] === (string) $provider_post);
+        if (!$is_provider && !current_user_can('manage_options')) {
+            return new WP_REST_Response(['error' => 'forbidden'], 403);
+        }
+
+        $old_status = $this->normalize_payment_status($appt['status'] ?? '');
+        $updated = $this->core->wpdb->update(
+            $this->core->appt_table,
+            ['status' => $status],
+            ['ID' => $id],
+            ['%s'],
+            ['%d']
+        );
+        if ($updated === false) return new WP_REST_Response(['error' => 'db_error'], 500);
+
+        if ($old_status !== $status) {
+            do_action('nelx_appointment_payment_status_changed', $id, $old_status, $status);
+            $this->clear_appointment_caches($id);
+        }
+
+        return new WP_REST_Response([
+            'ok' => true,
+            'status' => $status,
+            'status_label' => $this->humanize_payment_status($status),
+        ], 200);
+    }
+
     public function update_appointment_status($request) {
         $id = intval($request['id']);
         $params = $request->get_json_params();

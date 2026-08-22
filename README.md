@@ -60,12 +60,13 @@ Add the following shortcodes to any page or post:
 
 ```
 [nelx_schedule_editor]
-[nelx_provider_action_buttons]
-[nelx_client_action_buttons]
+[nelx_provider_action_buttons] -legacy
+[nelx_client_action_buttons] - legacy
 [nelx_google_meet_settings]
 [nelx_staff_appointments]
 [nelx_client_appointments]
-[nelx_appointments_calendar]
+[nelx_staff_appointments_grid]
+[nelx_client_appointments_grid]
 ```
 
 ### Using Elementor Widgets
@@ -76,7 +77,6 @@ Add the following shortcodes to any page or post:
    - Schedule Editor
    - Staff Appointments (Table or Grid view)
    - Client Appointments (Table or Grid view)
-   - Appointments Calendar
    - Provider Action Buttons
    - Client Action Buttons
    - Google Meet Settings

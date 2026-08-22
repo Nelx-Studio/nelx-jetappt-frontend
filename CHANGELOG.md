@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Appointments Calendar widget for monthly booking overview
 - Enhanced appointment info modal with flexible field configuration
 - Payment status management system with REST API endpoint
-- New shortcodes: `[nelx_staff_appointments]`, `[nelx_client_appointments]`, `[nelx_appointments_calendar]`
+- New shortcodes: `[nelx_staff_appointments]`, `[nelx_client_appointments]`, `[nelx_staff_appointments_grid]`, `[nelx_client_appointments_grid]`
 - Cron job testing and diagnostics tools for setup verification
 - Manual cron confirmation option for shared hosting environments
 - Improved file checking, CLI testing, and crontab detection for cron validation

@@ -1874,6 +1874,26 @@ class NELXJAF_Settings_Page {
             <h3><?php esc_html_e('Nelx Notifications', 'nelx-jetappt-frontend'); ?></h3>
             <p><?php esc_html_e('Configure notifications. This feature allows users to receive real-time notifications about appointments (new, confirmations, canceled, and reminders).', 'nelx-jetappt-frontend'); ?></p>
             
+            <!-- Added links section with styled box -->
+            <div class="nelx-notification-links" style="margin-bottom: 20px; padding: 16px 20px; background: #f8f9fa; border-radius: 4px; border-left: 4px solid #3858E9;">
+                <p style="margin: 0 0 12px 0; font-weight: 600; font-size: 14px;">
+                    <span class="dashicons dashicons-admin-links" style="margin-right: 6px; vertical-align: middle;"></span>
+                    <?php esc_html_e('Useful Nelx Notification Plugin Resources:', 'nelx-jetappt-frontend'); ?>
+                </p>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <a href="https://nelxstudio.com/nelx-notification-system/" target="_blank" rel="noopener noreferrer" 
+                       class="button" style="background: #3858E9; color: #ffffff; border-color: #3858E9; display: inline-flex; align-items: center; gap: 6px; height: auto; padding: 6px 16px;">
+                        <span class="dashicons dashicons-info" style="font-size: 18px; width: 18px; height: 18px; line-height: 1; color: #fff;"></span>
+                        <?php esc_html_e('About the Plugin & How to Get It', 'nelx-jetappt-frontend'); ?>
+                    </a>
+                    <a href="https://nelxstudio.com/docs/nelx-notification-system-introduction/" target="_blank" rel="noopener noreferrer" 
+                       class="button" style="display: inline-flex; align-items: center; gap: 6px; height: auto; padding: 6px 16px;">
+                        <span class="dashicons dashicons-book" style="font-size: 18px; width: 18px; height: 18px; line-height: 1;"></span>
+                        <?php esc_html_e('Full Plugin Documentation', 'nelx-jetappt-frontend'); ?>
+                    </a>
+                </div>
+            </div>
+            
             <div class="nelx-two-column-grid">
                 <div class="nelx-grid-full">
                     <div class="nelx-field-card">

@@ -3,7 +3,7 @@
  * Plugin Name: Nelx JetAppointments Frontend Manager
  * Description: Front-end schedule editor, provider action buttons, collision-safe reschedule, secure delete, inline modals and available slots endpoint tailored to JetAppointments schema.
  * Version: 1.1.9
- * Author: Astariko Ambuka
+ * Author: Nelx Studio
  * Author URI: https://nelxstudio.com
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
